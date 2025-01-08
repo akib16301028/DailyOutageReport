@@ -33,10 +33,18 @@ if rms_site_file:
         # Filter out sites starting with 'L'
         df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
         
-        # Extract tenant from Site Alias
+        # Extract tenant from Site Alias (updated to find tenant from any bracketed name)
         def extract_tenant(site_alias):
-            if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
-                return site_alias.split("(")[1].split(")")[0].strip()
+            if isinstance(site_alias, str):
+                # Find all text inside parentheses
+                brackets = site_alias.split("(")
+                tenants = [part.split(")")[0].strip() for part in brackets if ")" in part]
+                
+                # Check if BANJO exists in any of the extracted tenant names
+                for tenant in tenants:
+                    if "BANJO" in tenant:
+                        return "Banjo"  # Return 'Banjo' if it is found
+                return tenants[0] if tenants else "Unknown"  # Return the first tenant found if no 'BANJO'
             return "Unknown"
         
         # Add Tenant column
