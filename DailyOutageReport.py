@@ -7,15 +7,22 @@ st.title("Tenant-Wise Data Processing Application")
 # Sidebar for uploading files
 st.sidebar.header("Upload Required Excel Files")
 
-# Step 1: Upload RMS Site List
-rms_site_file = st.sidebar.file_uploader(
-    "1. RMS Site List", type=["xlsx", "xls"]
+# Step 1: Upload Yesterday DCDB-01 Primary Disconnect History
+yesterday_file = st.sidebar.file_uploader(
+    "1. Yesterday DCDB-01 Primary Disconnect History", type=["xlsx", "xls"]
 )
-if rms_site_file:
-    st.success("RMS Site List uploaded successfully!")
-    
+
+# Step 2: Upload RMS Site List
+rms_site_file = st.sidebar.file_uploader(
+    "2. RMS Site List", type=["xlsx", "xls"]
+)
+
+if yesterday_file and rms_site_file:
+    st.success("Both files uploaded successfully!")
+
     try:
-        # Read RMS Site List starting from row 3
+        # Load Yesterday DCDB-01 Primary Disconnect History file
+        df_yesterday = pd.read_excel(yesterday_file, skiprows=2)  # Data starts from row 3
         df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
 
         # Define a mapping for tenant name standardization
@@ -32,13 +39,13 @@ if rms_site_file:
 
         # Filter out sites starting with 'L'
         df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
-        
+
         # Extract tenant from Site Alias
         def extract_tenant(site_alias):
             if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
                 return site_alias.split("(")[1].split(")")[0].strip()
             return "Unknown"
-        
+
         # Add Tenant column
         df_rms_filtered["Tenant"] = df_rms_filtered["Site Alias"].apply(extract_tenant)
 
@@ -55,12 +62,21 @@ if rms_site_file:
             # Group data by Cluster and Zone
             grouped_df = tenant_df.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
 
+            # VLOOKUP-like approach: Match Zone names with Yesterday DCDB-01 Primary Disconnect History and find affected sites
+            zone_vlookup = df_yesterday[["Zone"]].drop_duplicates()
+            zone_vlookup["Total Affected Site"] = zone_vlookup["Zone"].apply(
+                lambda zone: df_rms_filtered[df_rms_filtered["Zone"] == zone].shape[0]
+            )
+
+            # Merge the zone VLOOKUP result into the grouped table
+            grouped_df = pd.merge(grouped_df, zone_vlookup, on="Zone", how="left").fillna(0)
+
             # Sort by Cluster and Zone
             grouped_df = grouped_df.sort_values(by=["Cluster", "Zone"])
 
             # Display table for the specific Cluster and Zone
             st.subheader(f"Tenant: {tenant} - Cluster and Zone Site Counts")
-            display_table = grouped_df[["Cluster", "Zone", "Total Site Count"]]
+            display_table = grouped_df[["Cluster", "Zone", "Total Site Count", "Total Affected Site"]]
 
             st.dataframe(display_table)
 
@@ -70,8 +86,8 @@ if rms_site_file:
         st.dataframe(overall_total)
 
     except Exception as e:
-        st.error(f"Error processing RMS Site List: {e}")
+        st.error(f"Error processing RMS Site List or Yesterday DCDB-01 file: {e}")
 
 # Final Message
-if rms_site_file:
-    st.sidebar.success("RMS Site List processed successfully!")
+if yesterday_file and rms_site_file:
+    st.sidebar.success("Both files processed successfully!")
