@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # Set the title of the application
-st.title("Data Upload and Tenant-Wise Analysis Application")
+st.title("Tenant-Wise Data Processing Application")
 
 # Sidebar for uploading files
 st.sidebar.header("Upload Required Excel Files")
@@ -11,58 +11,10 @@ st.sidebar.header("Upload Required Excel Files")
 yesterday_file = st.sidebar.file_uploader(
     "1. Yesterday DCDB-01 Primary Disconnect History", type=["xlsx", "xls"]
 )
-df_yesterday = None
 if yesterday_file:
     st.success("Yesterday's disconnect history uploaded successfully!")
-    # Read the Excel file starting from row 3
-    df_yesterday = pd.read_excel(yesterday_file, skiprows=2)
-    
-    # Extract required columns for processing
-    tenant_column = "Tenant"  # Replace with actual column name
-    cluster_column = "Cluster"  # Replace with actual column name
-    zone_column = "Zone"  # Replace with actual column name
-    
-    required_columns = [tenant_column, cluster_column, zone_column]
-    if all(col in df_yesterday.columns for col in required_columns):
-        tenants = df_yesterday[tenant_column].unique()
-        
-        # Group by Tenant, Cluster (RIO), and Zone
-        tenant_grouped_data = (
-            df_yesterday.groupby([tenant_column, cluster_column, zone_column])
-            .size()
-            .reset_index(name="Count")
-        )
-        
-        # Overall tenant count table
-        overall_data = (
-            tenant_grouped_data.groupby([cluster_column, zone_column])
-            .agg({"Count": "sum"})
-            .reset_index()
-        )
-        overall_data["Tenant"] = "Overall"
-
-        # Display selectbox for tenant selection
-        selected_tenant = st.sidebar.selectbox("Select Tenant or View All", ["All"] + list(tenants))
-
-        # Filter based on selection
-        if selected_tenant == "All":
-            display_data = overall_data.copy()
-        else:
-            display_data = tenant_grouped_data[tenant_grouped_data[tenant_column] == selected_tenant].copy()
-
-        # Merge and center RIO (Cluster) names
-        display_data["RIO"] = display_data[cluster_column]
-        display_data = display_data.drop(columns=[cluster_column])
-        
-        # Display the table
-        st.subheader(f"Tenant Data: {selected_tenant}")
-        st.dataframe(display_data)
-
-        # Display overall count table
-        st.subheader("Overall Tenant Count Table")
-        st.dataframe(overall_data)
-    else:
-        st.error(f"Required columns missing: {', '.join([col for col in required_columns if col not in df_yesterday.columns])}")
+    df_yesterday = pd.read_excel(yesterday_file, skiprows=2)  # Data starts from row 3
+    tenant_names = df_yesterday["Tenant"].unique()
 
 # Step 2: Upload RMS Site List
 rms_site_file = st.sidebar.file_uploader(
@@ -70,78 +22,74 @@ rms_site_file = st.sidebar.file_uploader(
 )
 if rms_site_file:
     st.success("RMS Site List uploaded successfully!")
-    # Read RMS Site List starting from row 3
-    df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
     
-    site_column = "Site"
-    site_alias_column = "Site Alias"
-    zone_column = "Zone"
-    
-    if all(col in df_rms_site.columns for col in [site_column, site_alias_column, zone_column]):
-        # Extract tenant from Site Alias
-        def extract_tenant(site_alias):
-            if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
-                return site_alias.split("(")[-1].replace(")", "").strip()
-            return None
+    try:
+        # Read RMS Site List starting from row 3
+        df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
 
-        df_rms_site["Tenant"] = df_rms_site[site_alias_column].apply(extract_tenant)
-        
-        # Filter out sites starting with "L"
-        df_rms_site = df_rms_site[~df_rms_site[site_column].str.startswith("L")]
-
-        # Count sites zone-wise for each tenant
-        tenant_zone_site_count = (
-            df_rms_site.groupby(["Tenant", zone_column])
-            .size()
-            .reset_index(name="Total Site Count")
-        )
-
-        # Match zones with tenant table and merge site counts
-        if df_yesterday is not None:
-            site_count_merged = tenant_grouped_data.merge(
-                tenant_zone_site_count,
-                how="left",
-                left_on=[tenant_column, zone_column],
-                right_on=["Tenant", zone_column]
-            )
-            # Fill missing counts with 0
-            site_count_merged["Total Site Count"] = site_count_merged["Total Site Count"].fillna(0).astype(int)
+        # Check if necessary columns exist
+        required_columns = ["Site", "Site Alias", "Zone", "Cluster"]
+        if all(col in df_rms_site.columns for col in required_columns):
+            # Filter out sites starting with 'L'
+            df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
             
-            # Display the updated table
-            st.subheader("Updated Tenant Table with Total Site Count")
-            st.dataframe(site_count_merged)
-        
-        # Overall count
-        overall_site_count = (
-            df_rms_site.groupby(zone_column)
-            .size()
-            .reset_index(name="Total Site Count")
-        )
-        st.subheader("Overall Zone-Wise Site Count")
-        st.dataframe(overall_site_count)
-    else:
-        st.error("Required columns missing from RMS Site List.")
+            # Extract tenant from Site Alias
+            def extract_tenant(site_alias):
+                if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
+                    return site_alias.split("(")[1].split(")")[0].strip()
+                return "Unknown"
+            
+            # Add Tenant column
+            df_rms_filtered["Tenant"] = df_rms_filtered["Site Alias"].apply(extract_tenant)
 
-# Step 3: Upload Total DCDB-01 Primary Disconnect History Till Date
-total_history_file = st.sidebar.file_uploader(
-    "3. Total DCDB-01 Primary Disconnect History Till Date", type=["xlsx", "xls"]
-)
-if total_history_file:
-    st.success("Total disconnect history till date uploaded successfully!")
-    df_total_history = pd.read_excel(total_history_file)
-    st.subheader("Total DCDB-01 Primary Disconnect History Till Date")
-    st.dataframe(df_total_history)
+            # Display the RMS Site List table for debugging
+            debug_columns = ["Site", "Site Alias", "Zone", "Cluster", "Tenant"]
+            st.subheader("Filtered RMS Site List with Extracted Tenant")
+            st.dataframe(df_rms_filtered[debug_columns])
 
-# Step 4: Upload Grid Data
-grid_data_file = st.sidebar.file_uploader(
-    "4. Grid Data", type=["xlsx", "xls"]
-)
-if grid_data_file:
-    st.success("Grid data uploaded successfully!")
-    df_grid_data = pd.read_excel(grid_data_file)
-    st.subheader("Grid Data")
-    st.dataframe(df_grid_data)
+            # Count sites per zone and tenant
+            site_count_per_zone = (
+                df_rms_filtered.groupby(["Tenant", "Zone"])
+                .size()
+                .reset_index(name="Total Site Count")
+            )
+            
+            # Merge site count into the main tenant table
+            tenant_tables = []
+            for tenant in tenant_names:
+                tenant_df = df_yesterday[df_yesterday["Tenant"] == tenant]
+                
+                # Group data by Cluster and Zone
+                grouped_df = tenant_df.groupby(["Cluster", "Zone"]).size().reset_index(name="Count")
+                
+                # Merge with site counts from RMS Site List
+                grouped_df = grouped_df.merge(
+                    site_count_per_zone[site_count_per_zone["Tenant"] == tenant],
+                    on="Zone",
+                    how="left",
+                ).fillna(0)
+                
+                # Append Total Site Count column
+                grouped_df["Total Site Count"] = grouped_df["Total Site Count"].astype(int)
+                
+                # Add to tenant table list
+                tenant_tables.append(grouped_df)
+                
+                # Display table for the specific tenant
+                st.subheader(f"Table for Tenant: {tenant}")
+                st.dataframe(grouped_df)
+
+            # Display overall total
+            overall_total = site_count_per_zone.groupby("Zone")["Total Site Count"].sum().reset_index()
+            st.subheader("Overall Total Site Count by Zone")
+            st.dataframe(overall_total)
+        else:
+            missing_columns = [col for col in required_columns if col not in df_rms_site.columns]
+            st.error(f"Required columns missing: {', '.join(missing_columns)}")
+    
+    except Exception as e:
+        st.error(f"Error processing RMS Site List: {e}")
 
 # Final Message
-if yesterday_file and rms_site_file and total_history_file and grid_data_file:
+if yesterday_file and rms_site_file:
     st.sidebar.success("All files have been uploaded and processed successfully!")
