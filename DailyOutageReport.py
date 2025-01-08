@@ -12,10 +12,49 @@ yesterday_file = st.sidebar.file_uploader(
     "1. Yesterday DCDB-01 Primary Disconnect History", type=["xlsx", "xls"]
 )
 if yesterday_file:
-    st.success("Yesterday's disconnect history uploaded successfully!")
-    df_yesterday = pd.read_excel(yesterday_file)
-    st.subheader("Yesterday DCDB-01 Primary Disconnect History")
-    st.dataframe(df_yesterday)
+    try:
+        st.success("Yesterday's disconnect history uploaded successfully!")
+        # Read the Excel file starting from row 3
+        df_yesterday = pd.read_excel(yesterday_file, skiprows=2)
+        
+        st.subheader("Yesterday DCDB-01 Primary Disconnect History (Raw Data)")
+        st.dataframe(df_yesterday)
+
+        # Extract tenant names dynamically
+        tenant_column = "Tenant"  # Replace with actual column name
+        cluster_column = "Cluster"  # Replace with actual column name
+        zone_column = "Zone"  # Replace with actual column name
+
+        # Check required columns
+        required_columns = [tenant_column, cluster_column, zone_column]
+        if all(col in df_yesterday.columns for col in required_columns):
+            tenants = df_yesterday[tenant_column].unique()
+            st.sidebar.subheader("Tenant-Wise Tables")
+
+            for tenant in tenants:
+                # Filter data for each tenant
+                tenant_data = df_yesterday[df_yesterday[tenant_column] == tenant]
+                
+                # Group by Cluster (RIO) and Zone
+                grouped_data = (
+                    tenant_data.groupby([cluster_column, zone_column])
+                    .size()
+                    .reset_index(name="Count")
+                )
+                
+                # Rename columns for clarity
+                grouped_data.rename(columns={cluster_column: "RIO", zone_column: "Zone"}, inplace=True)
+                
+                # Display tenant-specific table
+                st.subheader(f"Tenant: {tenant}")
+                st.dataframe(grouped_data)
+
+        else:
+            missing_cols = [col for col in required_columns if col not in df_yesterday.columns]
+            st.error(f"Missing columns in the uploaded file: {', '.join(missing_cols)}")
+
+    except Exception as e:
+        st.error(f"An error occurred while processing the file: {e}")
 
 # Step 2: Upload Total DCDB-01 Primary Disconnect History Till Date
 total_history_file = st.sidebar.file_uploader(
@@ -55,6 +94,7 @@ if show_mta_site_list:
         # Read the MTA Site List Excel file
         mta_file_path = "MTA Site List.xlsx"  # Ensure this file is in the same directory as the script
         df_mta = pd.read_excel(mta_file_path)
+        
         # Select specific columns to display
         columns_to_show = [
             "Rms Station", "Site", "Site Alias", "Zone", "Cluster",
