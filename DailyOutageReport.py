@@ -56,7 +56,7 @@ if rms_site_file:
         # Get unique tenants
         tenant_names = df_rms_filtered["Tenant"].unique()
 
-        # Display tables for each tenant and group by Cluster and Zone
+        # Store tenant-wise data for aggregation later
         tenant_zone_rms = {}
 
         for tenant in tenant_names:
@@ -87,8 +87,8 @@ if rms_site_file:
                 # Get unique tenants from Yesterday Alarm History
                 tenant_names_history = df_alarm_history["Tenant"].unique()
 
-                # Display merged tables for each tenant and group by Cluster and Zone
-                tenant_zone_merged = {}
+                # Store merged data for all tenants
+                merged_all_tenants = pd.DataFrame()
 
                 for tenant in tenant_names_history:
                     # Get RMS Site List data for the tenant
@@ -123,13 +123,19 @@ if rms_site_file:
                     merged_data["Total Affected Site"] = merged_data["Total Affected Site"].fillna(0)
                     merged_data["Elapsed Time (Decimal)"] = merged_data["Elapsed Time (Decimal)"].fillna(0.0)
 
-                    # Add merged data to the dictionary
-                    tenant_zone_merged[tenant] = merged_data
+                    # Append the merged data to the overall data
+                    merged_all_tenants = pd.concat([merged_all_tenants, merged_data])
 
-                # Display merged table for each tenant
-                for tenant, merged_df in tenant_zone_merged.items():
-                    st.subheader(f"Tenant: {tenant} - Merged Cluster and Zone Site Counts (with Affected Sites and Elapsed Time)")
-                    st.dataframe(merged_df[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)"]])
+                # Group by Cluster and Zone for all tenants together
+                overall_merged_data = merged_all_tenants.groupby(["Cluster", "Zone"]).agg({
+                    "Total Site Count": "sum",
+                    "Total Affected Site": "sum",
+                    "Elapsed Time (Decimal)": "sum"
+                }).reset_index()
+
+                # Display merged table for all tenants
+                st.subheader("Overall Merged Cluster and Zone Site Counts (with Affected Sites and Elapsed Time)")
+                st.dataframe(overall_merged_data[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)"]])
 
             except Exception as e:
                 st.error(f"Error processing Yesterday Alarm History: {e}")
