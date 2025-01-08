@@ -100,17 +100,24 @@ if alarm_history_file:
         # Read the MTA Site List file from the uploaded data
         if rms_site_file:
             try:
+                # Read MTA Site List and check columns
                 df_mta = pd.read_excel(rms_site_file)
-                # Filter the relevant columns from MTA Site List
-                columns_to_show_mta = ["Site"]
-                df_mta_filtered = df_mta[columns_to_show_mta]
+                st.write("Columns in MTA Site List:", df_mta.columns)  # Print the columns to check
+                
+                # Ensure the 'Site' column exists in the MTA Site List
+                if "Site" not in df_mta.columns:
+                    st.error("The 'Site' column is missing in the MTA Site List. Please check the file.")
+                else:
+                    # Filter the relevant columns from MTA Site List
+                    columns_to_show_mta = ["Site"]
+                    df_mta_filtered = df_mta[columns_to_show_mta]
 
-                # Tag each site in Yesterday Alarm History as "MTA" or "Not MTA"
-                df_alarm_history["MTA/Not MTA"] = df_alarm_history["Site Alias"].apply(tag_mta)
+                    # Tag each site in Yesterday Alarm History as "MTA" or "Not MTA"
+                    df_alarm_history["MTA/Not MTA"] = df_alarm_history["Site Alias"].apply(tag_mta)
 
-                # Display the matched data table
-                st.subheader("Matched Data from Yesterday Alarm History with MTA/Not MTA Tag")
-                st.dataframe(df_alarm_history)
+                    # Display the matched data table
+                    st.subheader("Matched Data from Yesterday Alarm History with MTA/Not MTA Tag")
+                    st.dataframe(df_alarm_history)
 
             except Exception as e:
                 st.error(f"Error processing MTA Site List: {e}")
@@ -179,32 +186,6 @@ if alarm_history_file:
 
     except Exception as e:
         st.error(f"Error processing Yesterday Alarm History: {e}")
-
-# Checkbox to view MTA Site List
-show_mta_site_list = st.sidebar.checkbox("Show MTA Site List")
-
-if show_mta_site_list:
-    try:
-        # Upload MTA Site List (assuming it's present in the repo directory)
-        mta_file_path = "MTA Site List.xlsx"  # Ensure this file is in the same directory as the script
-        df_mta = pd.read_excel(mta_file_path)
-
-        # Select columns for MTA Site List
-        columns_to_show = [
-            "Rms Station", "Site", "Site Alias", "Zone", "Cluster",
-            "District", "Site Attributes", "Alarm Status", "Installation Date"
-        ]
-        df_filtered_mta = df_mta[columns_to_show]
-
-        # Group MTA Site List by Cluster and Zone
-        grouped_mta = df_filtered_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
-
-        # Display the grouped MTA Site List by Cluster and Zone
-        st.subheader("Grouped MTA Site List by Cluster and Zone")
-        st.dataframe(grouped_mta)
-
-    except Exception as e:
-        st.error(f"Error processing MTA Site List: {e}")
 
 # Final Message
 if rms_site_file and alarm_history_file:
