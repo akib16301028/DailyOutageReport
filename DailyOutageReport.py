@@ -150,6 +150,29 @@ if rms_site_file:
             except Exception as e:
                 st.error(f"Error processing Yesterday Alarm History: {e}")
 
+        # Checkbox to view MTA Site List
+        show_mta_site_list = st.sidebar.checkbox("Show MTA Site List")
+
+        if show_mta_site_list:
+            try:
+                # Upload MTA Site List (assuming it's present in the repo directory)
+                mta_file_path = "MTA Site List.xlsx"  # Ensure this file is in the same directory as the script
+                df_mta = pd.read_excel(mta_file_path)
+
+                # Select columns for MTA Site List
+                columns_to_show = [
+                    "Rms Station", "Site", "Site Alias", "Zone", "Cluster",
+                    "District", "Site Attributes", "Alarm Status", "Installation Date"
+                ]
+                df_filtered_mta = df_mta[columns_to_show]
+
+                # Display the MTA Site List
+                st.subheader("MTA Site List")
+                st.dataframe(df_filtered_mta)
+
+            except Exception as e:
+                st.error(f"Error processing MTA Site List: {e}")
+
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
 
