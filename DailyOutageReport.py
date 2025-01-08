@@ -90,6 +90,7 @@ if rms_site_file:
                 # Store merged data for all tenants
                 merged_all_tenants = pd.DataFrame()
 
+                # Display tenant-wise tables
                 for tenant in tenant_names_history:
                     # Get RMS Site List data for the tenant
                     rms_data = tenant_zone_rms.get(tenant, pd.DataFrame())
@@ -123,6 +124,10 @@ if rms_site_file:
                     merged_data["Total Affected Site"] = merged_data["Total Affected Site"].fillna(0)
                     merged_data["Elapsed Time (Decimal)"] = merged_data["Elapsed Time (Decimal)"].fillna(0.0)
 
+                    # Display tenant-wise merged table
+                    st.subheader(f"Tenant: {tenant} - Cluster and Zone Site Counts with Affected Sites and Elapsed Time")
+                    st.dataframe(merged_data[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)"]])
+
                     # Append the merged data to the overall data
                     merged_all_tenants = pd.concat([merged_all_tenants, merged_data])
 
@@ -134,7 +139,7 @@ if rms_site_file:
                 }).reset_index()
 
                 # Display merged table for all tenants
-                st.subheader("Overall Merged Cluster and Zone Site Counts (with Affected Sites and Elapsed Time)")
+                st.subheader("Overall Merged Cluster and Zone Site Counts (with Affected Sites and Elapsed Time) for All Tenants")
                 st.dataframe(overall_merged_data[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)"]])
 
             except Exception as e:
