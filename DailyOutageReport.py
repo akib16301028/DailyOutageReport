@@ -90,6 +90,31 @@ if alarm_history_file:
         # Filter out sites starting with 'L' in the Site column of Yesterday Alarm History
         df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
 
+        # Function to tag each site as MTA or Not MTA based on the MTA Site List
+        def tag_mta(site):
+            # If the Site in Alarm History exists in the MTA Site List, tag as MTA, otherwise Not MTA
+            if site in df_mta_filtered["Site"].values:
+                return "MTA"
+            return "Not MTA"
+
+        # Read the MTA Site List file from the uploaded data
+        if rms_site_file:
+            try:
+                df_mta = pd.read_excel(rms_site_file)
+                # Filter the relevant columns from MTA Site List
+                columns_to_show_mta = ["Site"]
+                df_mta_filtered = df_mta[columns_to_show_mta]
+
+                # Tag each site in Yesterday Alarm History as "MTA" or "Not MTA"
+                df_alarm_history["MTA/Not MTA"] = df_alarm_history["Site Alias"].apply(tag_mta)
+
+                # Display the matched data table
+                st.subheader("Matched Data from Yesterday Alarm History with MTA/Not MTA Tag")
+                st.dataframe(df_alarm_history)
+
+            except Exception as e:
+                st.error(f"Error processing MTA Site List: {e}")
+
         # Standardize tenant names in Yesterday Alarm History file
         df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
 
@@ -184,4 +209,3 @@ if show_mta_site_list:
 # Final Message
 if rms_site_file and alarm_history_file:
     st.sidebar.success("All files processed successfully!")
-
