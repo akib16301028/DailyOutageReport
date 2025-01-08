@@ -166,9 +166,12 @@ if rms_site_file:
                 ]
                 df_filtered_mta = df_mta[columns_to_show]
 
-                # Display the MTA Site List
-                st.subheader("MTA Site List")
-                st.dataframe(df_filtered_mta)
+                # Group MTA Site List by Cluster and Zone
+                grouped_mta = df_filtered_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
+
+                # Display the grouped MTA Site List by Cluster and Zone
+                st.subheader("Grouped MTA Site List by Cluster and Zone")
+                st.dataframe(grouped_mta)
 
             except Exception as e:
                 st.error(f"Error processing MTA Site List: {e}")
