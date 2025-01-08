@@ -217,6 +217,16 @@ if rms_site_file:
                     st.subheader(f"Tenant: {tenant} - AC Availability by Cluster and Zone")
                     st.dataframe(grouped_df[["Cluster", "Zone", "Site Alias", "AC Availability (%)"]])
 
+                # Create the combined table for all tenants
+                combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
+                    "Site Alias": "count",  # Count all Site Alias
+                    "AC Availability (%)": "mean",  # Average AC Availability
+                }).reset_index()
+
+                # Display combined table for all tenants
+                st.subheader("Combined AC Availability by Cluster and Zone for All Tenants")
+                st.dataframe(combined_grid_data[["Cluster", "Zone", "Site Alias", "AC Availability (%)"]])
+
             except Exception as e:
                 st.error(f"Error processing Grid Data: {e}")
 
@@ -224,5 +234,5 @@ if rms_site_file:
         st.error(f"Error processing RMS Site List: {e}")
 
 # Final Message
-if rms_site_file and alarm_history_file:
+if rms_site_file and alarm_history_file and grid_data_file:
     st.sidebar.success("All files processed successfully!")
