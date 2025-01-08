@@ -1,4 +1,3 @@
-import streamlit as st
 import pandas as pd
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -94,13 +93,6 @@ if rms_site_file:
                 # Store merged data for all tenants
                 merged_all_tenants = pd.DataFrame()
 
-                # Function to match Site with MTA Site List
-                def tag_mta(site):
-                    # If the Site in Alarm History exists in the MTA Site List, tag as MTA, otherwise Not MTA
-                    if site in df_mta_filtered["Site"].values:
-                        return "MTA"
-                    return "Not MTA"
-
                 # Display tenant-wise tables
                 for tenant in tenant_names_history:
                     # Get RMS Site List data for the tenant
@@ -136,12 +128,9 @@ if rms_site_file:
                     merged_data["Total Affected Site"] = merged_data["Total Affected Site"].fillna(0)
                     merged_data["Elapsed Time (Decimal)"] = merged_data["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
 
-                    # Add MTA/Not MTA tag for each site in Alarm History
-                    merged_data["MTA/Not MTA"] = merged_data["Site Alias"].apply(tag_mta)
-
                     # Display tenant-wise merged table
                     st.subheader(f"Tenant: {tenant} - Cluster and Zone Site Counts with Affected Sites and Elapsed Time")
-                    st.dataframe(merged_data[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "MTA/Not MTA"]])
+                    st.dataframe(merged_data[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)"]])
 
                     # Append the merged data to the overall data
                     merged_all_tenants = pd.concat([merged_all_tenants, merged_data])
@@ -175,10 +164,6 @@ if rms_site_file:
                     "District", "Site Attributes", "Alarm Status", "Installation Date"
                 ]
                 df_filtered_mta = df_mta[columns_to_show]
-
-                # Filter the MTA Site List by relevant columns
-                columns_to_show_mta = ["Site"]
-                df_mta_filtered = df_filtered_mta[columns_to_show_mta]
 
                 # Group MTA Site List by Cluster and Zone
                 grouped_mta = df_filtered_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
