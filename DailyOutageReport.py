@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # Set the title of the application
-st.title("Tenant-Wise Data Processing Application")
+st.title("Tenant-Wise Data Processing Application with Debugging")
 
 # Sidebar for uploading files
 st.sidebar.header("Upload Required Excel Files")
@@ -23,6 +23,8 @@ if yesterday_file and rms_site_file:
     try:
         # Load Yesterday DCDB-01 Primary Disconnect History file (skip first 2 rows for header)
         df_yesterday = pd.read_excel(yesterday_file, skiprows=2)
+        st.subheader("Raw Data: Yesterday DCDB-01 Primary Disconnect History")
+        st.dataframe(df_yesterday)
 
         # Load RMS Site List file (skip first 2 rows for header)
         df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
@@ -79,7 +81,7 @@ if yesterday_file and rms_site_file:
         # Convert the result into a DataFrame
         df_zone_cluster_affected = pd.DataFrame(zone_cluster_affected)
 
-        # Now for each tenant, we will create a table grouped by Cluster and Zone, adding the Total Affected Site count
+        # Now for each tenant, create a table grouped by Cluster and Zone, adding the Total Affected Site count
         for tenant in df_rms_filtered["Tenant"].unique():
             tenant_df = df_rms_filtered[df_rms_filtered["Tenant"] == tenant]
             
@@ -93,6 +95,11 @@ if yesterday_file and rms_site_file:
             st.subheader(f"Tenant: {tenant} - Cluster and Zone Site Counts")
             display_table = grouped_df[["Cluster", "Zone", "Total Site Count", "Total Affected Site"]]
             st.dataframe(display_table)
+
+            # Tenant-wise count by zone
+            tenant_zone_counts = tenant_df.groupby("Zone").size().reset_index(name="Tenant Site Count")
+            st.subheader(f"Tenant: {tenant} - Zone Site Count")
+            st.dataframe(tenant_zone_counts)
 
         # Display overall total (total site count for each zone)
         overall_total = df_rms_filtered.groupby("Zone").size().reset_index(name="Total Site Count")
