@@ -53,44 +53,49 @@ if yesterday_file and rms_site_file:
         df_rms_filtered["Tenant"] = df_rms_filtered["Tenant"].apply(standardize_tenant)
 
         # Extract Zones and Clusters from both files for matching
-        zones_clusters_yesterday = df_yesterday[["Zone", "Cluster", "Tenant"]].drop_duplicates()
+        zones_clusters_yesterday = df_yesterday[["Zone", "Cluster"]].drop_duplicates()
+        zones_clusters_rms = df_rms_filtered[["Zone", "Cluster"]].drop_duplicates()
 
-        # Create an empty list to store the results
+        # For each unique Zone and Cluster in the RMS Site List, match it with Yesterday DCDB-01 file and find Site Alias count
         zone_cluster_affected = []
 
-        # For each tenant, match and group by Zone, then count the Site Alias entries
-        for tenant in df_rms_filtered["Tenant"].unique():
-            tenant_df_yesterday = df_yesterday[df_yesterday["Tenant"] == tenant]
+        for _, row in zones_clusters_rms.iterrows():
+            zone = row["Zone"]
+            cluster = row["Cluster"]
 
-            # Group by Zone and Cluster
-            grouped = tenant_df_yesterday.groupby(["Zone", "Cluster"]).agg({"Site": "count"}).reset_index()
+            # Match the zones and clusters from the Yesterday DCDB-01 Primary Disconnect History
+            matching_rows = df_yesterday[(df_yesterday["Zone"] == zone) & (df_yesterday["Cluster"] == cluster)]
+            
+            # Count the corresponding Site Aliases in the matching rows
+            site_alias_count = matching_rows["Site Alias"].nunique()
 
-            # Add the Total Affected Site count to the table
-            grouped["Total Affected Site"] = grouped["Site"]
+            # Append the result as a dictionary
+            zone_cluster_affected.append({
+                "Zone": zone,
+                "Cluster": cluster,
+                "Total Affected Site": site_alias_count
+            })
 
-            # Now append the result
-            for _, row in grouped.iterrows():
-                zone_cluster_affected.append({
-                    "Tenant": tenant,
-                    "Zone": row["Zone"],
-                    "Cluster": row["Cluster"],
-                    "Total Site Count": row["Site"],
-                    "Total Affected Site": row["Total Affected Site"]
-                })
-
-        # Convert the list into a DataFrame
+        # Convert the result into a DataFrame
         df_zone_cluster_affected = pd.DataFrame(zone_cluster_affected)
 
-        # Now display the table for each tenant
-        for tenant in df_zone_cluster_affected["Tenant"].unique():
-            tenant_table = df_zone_cluster_affected[df_zone_cluster_affected["Tenant"] == tenant]
+        # Now for each tenant, we will create a table grouped by Cluster and Zone, adding the Total Affected Site count
+        for tenant in df_rms_filtered["Tenant"].unique():
+            tenant_df = df_rms_filtered[df_rms_filtered["Tenant"] == tenant]
             
-            st.subheader(f"Tenant: {tenant} - Zone and Cluster Site Counts")
-            st.dataframe(tenant_table[["Zone", "Cluster", "Total Site Count", "Total Affected Site"]])
+            # Group data by Cluster and Zone
+            grouped_df = tenant_df.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
 
-        # Display the overall total Site count across all tenants
-        overall_total = df_zone_cluster_affected.groupby("Zone").agg({"Total Site Count": "sum"}).reset_index()
+            # Merge with the previously computed Total Affected Site count
+            grouped_df = pd.merge(grouped_df, df_zone_cluster_affected, on=["Cluster", "Zone"], how="left").fillna(0)
 
+            # Display the table for each tenant
+            st.subheader(f"Tenant: {tenant} - Cluster and Zone Site Counts")
+            display_table = grouped_df[["Cluster", "Zone", "Total Site Count", "Total Affected Site"]]
+            st.dataframe(display_table)
+
+        # Display overall total (total site count for each zone)
+        overall_total = df_rms_filtered.groupby("Zone").size().reset_index(name="Total Site Count")
         st.subheader("Overall Total Site Count by Zone")
         st.dataframe(overall_total)
 
