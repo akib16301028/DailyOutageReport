@@ -57,11 +57,6 @@ if rms_site_file:
         # Standardize tenant names in Yesterday DCDB-01 Primary Disconnect History
         df_yesterday["Tenant"] = df_yesterday["Tenant"].apply(standardize_tenant)
 
-        # Display the RMS Site List table for debugging
-        debug_columns = ["Site", "Site Alias", "Zone", "Cluster", "Tenant"]
-        st.subheader("Filtered RMS Site List with Extracted Tenant")
-        st.dataframe(df_rms_filtered[debug_columns])
-
         # Create a set of all unique Cluster-Zone combinations
         all_cluster_zone = df_yesterday[["Cluster", "Zone"]].drop_duplicates()
 
@@ -101,6 +96,10 @@ if rms_site_file:
             # Display table for the specific Cluster and Zone (without Tenant column)
             st.subheader(f"Table for Cluster: {tenant}")
             display_table = grouped_df[["Cluster", "Zone", "Count", "Total Site Count"]]
+            
+            # Sort by Cluster to ensure it is in correct order
+            display_table = display_table.sort_values(by=["Cluster", "Zone"])
+
             st.dataframe(display_table)
 
         # Display overall total
