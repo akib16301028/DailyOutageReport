@@ -47,6 +47,28 @@ if grid_data_file:
     st.subheader("Grid Data")
     st.dataframe(df_grid_data)
 
+# Checkbox to view MTA Site List
+show_mta_site_list = st.sidebar.checkbox("Show MTA Site List")
+
+if show_mta_site_list:
+    try:
+        # Read the MTA Site List Excel file
+        mta_file_path = "MTA Site List.xlsx"  # Ensure this file is in the same directory as the script
+        df_mta = pd.read_excel(mta_file_path)
+        # Select specific columns to display
+        columns_to_show = [
+            "Rms Station", "Site", "Site Alias", "Zone", "Cluster",
+            "District", "Site Attributes", "Alarm Status", "Installation Date"
+        ]
+        df_filtered_mta = df_mta[columns_to_show]
+        
+        # Display the filtered MTA Site List
+        st.subheader("MTA Site List")
+        st.dataframe(df_filtered_mta)
+
+    except Exception as e:
+        st.error(f"Could not load MTA Site List. Error: {e}")
+
 # Final Message
 if yesterday_file and total_history_file and rms_site_file and grid_data_file:
     st.sidebar.success("All files have been uploaded successfully!")
