@@ -155,27 +155,31 @@ if rms_site_file:
                     try:
                         # Upload MTA Site List (assuming it's present in the repo directory)
                         mta_file_path = "MTA Site List.xlsx"  # Ensure this file is in the same directory as the script
-                        df_mta = pd.read_excel(mta_file_path)
+                        df_mta = pd.read_excel(mta_file_path, skiprows=0)
 
-                        # Select columns for MTA Site List
-                        columns_to_show = [
-                            "Rms Station", "Site", "Site Alias", "Zone", "Cluster",
-                            "District", "Site Attributes", "Alarm Status", "Installation Date"
-                        ]
-                        df_filtered_mta = df_mta[columns_to_show]
+                        # Check if "Zone" and "Cluster" columns exist
+                        if "Zone" in df_mta.columns and "Cluster" in df_mta.columns:
+                            # Select columns for MTA Site List
+                            columns_to_show = [
+                                "Rms Station", "Site", "Site Alias", "Zone", "Cluster",
+                                "District", "Site Attributes", "Alarm Status", "Installation Date"
+                            ]
+                            df_filtered_mta = df_mta[columns_to_show]
 
-                        # Match Site Alias between MTA Site List and Yesterday Alarm History
-                        merged_mta_alarm = pd.merge(df_filtered_mta, df_alarm_history[["Site Alias", "Cluster", "Zone"]],
-                                                    how="left", on="Site Alias")
+                            # Match Site Alias between MTA Site List and Yesterday Alarm History
+                            merged_mta_alarm = pd.merge(df_filtered_mta, df_alarm_history[["Site Alias", "Cluster", "Zone"]],
+                                                        how="left", on="Site Alias")
 
-                        # Count "Total Affected Site" by matching Site Alias
-                        merged_mta_alarm["Total Affected Site"] = merged_mta_alarm["Site Alias"].apply(lambda x: 1 if pd.notnull(x) else 0)
-                        
-                        # Display the MTA Site List with Total Affected Sites
-                        st.subheader("MTA Site List with Affected Sites")
-                        st.dataframe(merged_mta_alarm[["Rms Station", "Site", "Site Alias", "Zone", "Cluster",
-                                                       "District", "Site Attributes", "Alarm Status", "Installation Date",
-                                                       "Total Affected Site"]])
+                            # Count "Total Affected Site" by matching Site Alias
+                            merged_mta_alarm["Total Affected Site"] = merged_mta_alarm["Site Alias"].apply(lambda x: 1 if pd.notnull(x) else 0)
+                            
+                            # Display the MTA Site List with Total Affected Sites
+                            st.subheader("MTA Site List with Affected Sites")
+                            st.dataframe(merged_mta_alarm[["Rms Station", "Site", "Site Alias", "Zone", "Cluster",
+                                                           "District", "Site Attributes", "Alarm Status", "Installation Date",
+                                                           "Total Affected Site"]])
+                        else:
+                            st.warning("MTA Site List is missing 'Zone' or 'Cluster' columns, cannot proceed with matching.")
 
                     except Exception as e:
                         st.error(f"Error processing MTA Site List: {e}")
