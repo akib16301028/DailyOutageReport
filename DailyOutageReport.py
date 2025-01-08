@@ -97,13 +97,11 @@ if rms_site_file:
             
             # Add Total Site Count column
             grouped_df["Total Site Count"] = grouped_df["Total Site Count"].astype(int)
-            
-            # Add to tenant table list
-            tenant_tables.append(grouped_df)
-            
-            # Display table for the specific tenant
-            st.subheader(f"Table for Tenant: {tenant}")
-            st.dataframe(grouped_df)
+
+            # Display table for the specific Cluster and Zone (without Tenant column)
+            st.subheader(f"Table for Cluster: {tenant}")
+            display_table = grouped_df[["Cluster", "Zone", "Count", "Total Site Count"]]
+            st.dataframe(display_table)
 
         # Display overall total
         overall_total = site_count_per_zone.groupby("Zone")["Total Site Count"].sum().reset_index()
