@@ -54,19 +54,10 @@ if rms_site_file:
         # Standardize tenant names in RMS Site List
         df_rms_filtered["Tenant"] = df_rms_filtered["Tenant"].apply(standardize_tenant)
 
-        # Display the tenant-wise zone and site count table
-        st.subheader("Tenant-wise Zone Site Count")
-        tenant_zone_count = (
-            df_rms_filtered.groupby(["Tenant", "Zone"])
-            .size()
-            .reset_index(name="Site Count")
-        )
-        st.dataframe(tenant_zone_count)
-
         # Merge the site counts back into the main table to show matching clusters and zones
         all_cluster_zone = df_yesterday[["Cluster", "Zone"]].drop_duplicates()
 
-        # Create a table for each tenant
+        # Display tables for each tenant and group by Cluster and Zone
         for tenant in tenant_names:
             tenant_df = df_yesterday[df_yesterday["Tenant"] == tenant]
 
