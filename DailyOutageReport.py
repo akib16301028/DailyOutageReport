@@ -54,58 +54,19 @@ if rms_site_file:
         # Standardize tenant names in RMS Site List
         df_rms_filtered["Tenant"] = df_rms_filtered["Tenant"].apply(standardize_tenant)
 
-        # Standardize tenant names in Yesterday DCDB-01 Primary Disconnect History
-        df_yesterday["Tenant"] = df_yesterday["Tenant"].apply(standardize_tenant)
-
-        # Create a set of all unique Cluster-Zone combinations
-        all_cluster_zone = df_yesterday[["Cluster", "Zone"]].drop_duplicates()
-
-        # Count sites per zone and tenant
-        site_count_per_zone = (
+        # Display the tenant-wise zone and site count table
+        st.subheader("Tenant-wise Zone Site Count")
+        tenant_zone_count = (
             df_rms_filtered.groupby(["Tenant", "Zone"])
             .size()
-            .reset_index(name="Total Site Count")
+            .reset_index(name="Site Count")
         )
-        
-        # Merge site count into the main tenant table
-        tenant_tables = []
-        for tenant in tenant_names:
-            tenant_df = df_yesterday[df_yesterday["Tenant"] == tenant]
-            
-            # Group data by Cluster and Zone
-            grouped_df = tenant_df.groupby(["Cluster", "Zone"]).size().reset_index(name="Count")
-            
-            # Merge with site counts from RMS Site List
-            grouped_df = grouped_df.merge(
-                site_count_per_zone[site_count_per_zone["Tenant"] == tenant],
-                on="Zone",
-                how="left",
-            ).fillna(0)
-            
-            # Merge with all possible Cluster-Zone combinations to ensure all zones are shown
-            grouped_df = pd.merge(
-                all_cluster_zone, 
-                grouped_df, 
-                on=["Cluster", "Zone"], 
-                how="left"
-            ).fillna(0)
-            
-            # Add Total Site Count column
-            grouped_df["Total Site Count"] = grouped_df["Total Site Count"].astype(int)
+        st.dataframe(tenant_zone_count)
 
-            # Display table for the specific Cluster and Zone (without Tenant column)
-            st.subheader(f"Table for Cluster: {tenant}")
-            display_table = grouped_df[["Cluster", "Zone", "Count", "Total Site Count"]]
-            
-            # Sort by Cluster to ensure it is in correct order
-            display_table = display_table.sort_values(by=["Cluster", "Zone"])
-
-            st.dataframe(display_table)
-
-        # Display overall total
-        overall_total = site_count_per_zone.groupby("Zone")["Total Site Count"].sum().reset_index()
-        st.subheader("Overall Total Site Count by Zone")
-        st.dataframe(overall_total)
+        # Display the complete RMS site list table with Tenant, Site, Zone, Cluster for debugging
+        st.subheader("Complete RMS Site List")
+        debug_table = df_rms_filtered[["Site", "Site Alias", "Zone", "Cluster", "Tenant"]]
+        st.dataframe(debug_table)
 
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
