@@ -188,15 +188,18 @@ if grid_data_file:
     st.success("Grid Data uploaded successfully!")
 
     try:
-        # Read Grid Data
-        df_grid_data = pd.read_excel(grid_data_file)
+        # Read Grid Data, starting from row 3
+        df_grid_data = pd.read_excel(grid_data_file, skiprows=2)
+
+        # Filter out sites starting with 'L'
+        df_grid_filtered = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
 
         # Select relevant columns
         columns_to_show_grid = [
             "Rms Station", "Site", "Site Alias", "Zone", "Cluster", 
             "Tenant Name", "AC Availability (%)", "DC Availability (%)"
         ]
-        df_filtered_grid = df_grid_data[columns_to_show_grid]
+        df_filtered_grid = df_grid_filtered[columns_to_show_grid]
 
         # Group by Tenant and Cluster
         tenant_zone_grid = df_filtered_grid.groupby(["Tenant Name", "Cluster", "Zone"]).agg({
