@@ -63,10 +63,45 @@ if rms_site_file:
         )
         st.dataframe(tenant_zone_count)
 
-        # Display the complete RMS site list table with Tenant, Site, Zone, Cluster for debugging
-        st.subheader("Complete RMS Site List")
-        debug_table = df_rms_filtered[["Site", "Site Alias", "Zone", "Cluster", "Tenant"]]
-        st.dataframe(debug_table)
+        # Merge the site counts back into the main table to show matching clusters and zones
+        all_cluster_zone = df_yesterday[["Cluster", "Zone"]].drop_duplicates()
+
+        # Create a table for each tenant
+        for tenant in tenant_names:
+            tenant_df = df_yesterday[df_yesterday["Tenant"] == tenant]
+
+            # Group data by Cluster and Zone
+            grouped_df = tenant_df.groupby(["Cluster", "Zone"]).size().reset_index(name="Count")
+            
+            # Merge with site counts from RMS Site List
+            site_counts = df_rms_filtered[df_rms_filtered["Tenant"] == tenant].groupby(["Zone"]).size().reset_index(name="Total Site Count")
+            grouped_df = grouped_df.merge(
+                site_counts,
+                on="Zone",
+                how="left",
+            ).fillna(0)
+
+            # Merge with all possible Cluster-Zone combinations to ensure all zones are shown
+            grouped_df = pd.merge(
+                all_cluster_zone, 
+                grouped_df, 
+                on=["Cluster", "Zone"], 
+                how="left"
+            ).fillna(0)
+
+            # Display table for the specific Cluster and Zone
+            st.subheader(f"Tenant: {tenant} - Cluster and Zone Counts")
+            display_table = grouped_df[["Cluster", "Zone", "Count", "Total Site Count"]]
+
+            # Sort by Cluster and Zone
+            display_table = display_table.sort_values(by=["Cluster", "Zone"])
+
+            st.dataframe(display_table)
+
+        # Display overall total (total site count for each zone)
+        overall_total = df_rms_filtered.groupby("Zone").size().reset_index(name="Total Site Count")
+        st.subheader("Overall Total Site Count by Zone")
+        st.dataframe(overall_total)
 
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
