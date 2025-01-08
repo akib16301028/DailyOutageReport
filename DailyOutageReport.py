@@ -81,8 +81,8 @@ if rms_site_file:
                 # Read Yesterday Alarm History file, skip first 3 rows
                 df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
 
-                # Filter out sites starting with 'L' in the Site Alias column
-                df_alarm_history = df_alarm_history[~df_alarm_history["Site Alias"].str.startswith("L", na=False)]
+                # Filter out sites starting with 'L' in the Site column of Yesterday Alarm History
+                df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
 
                 # Standardize tenant names in Yesterday Alarm History file
                 df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
