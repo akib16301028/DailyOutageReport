@@ -25,7 +25,8 @@ if rms_site_file:
             # Extract tenant from Site Alias
             def extract_tenant(site_alias):
                 if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
-                    return site_alias.split("(")[-1].replace(")", "").strip()
+                    # Extract the text inside parentheses
+                    return site_alias.split("(")[1].split(")")[0].strip()
                 return "Unknown"
             
             # Add Tenant column
