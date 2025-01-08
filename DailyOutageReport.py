@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from io import StringIO
 
 # Set the title of the application
 st.title("Data Upload and Tenant-Wise Analysis Application")
@@ -12,7 +11,7 @@ st.sidebar.header("Upload Required Excel Files")
 yesterday_file = st.sidebar.file_uploader(
     "1. Yesterday DCDB-01 Primary Disconnect History", type=["xlsx", "xls"]
 )
-
+df_yesterday = None
 if yesterday_file:
     st.success("Yesterday's disconnect history uploaded successfully!")
     # Read the Excel file starting from row 3
@@ -69,7 +68,6 @@ if yesterday_file:
 rms_site_file = st.sidebar.file_uploader(
     "2. RMS Site List", type=["xlsx", "xls"]
 )
-
 if rms_site_file:
     st.success("RMS Site List uploaded successfully!")
     # Read RMS Site List starting from row 3
@@ -82,7 +80,7 @@ if rms_site_file:
     if all(col in df_rms_site.columns for col in [site_column, site_alias_column, zone_column]):
         # Extract tenant from Site Alias
         def extract_tenant(site_alias):
-            if "(" in site_alias and ")" in site_alias:
+            if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
                 return site_alias.split("(")[-1].replace(")", "").strip()
             return None
 
@@ -99,19 +97,19 @@ if rms_site_file:
         )
 
         # Match zones with tenant table and merge site counts
-        site_count_merged = tenant_grouped_data.merge(
-            tenant_zone_site_count,
-            how="left",
-            left_on=[tenant_column, zone_column],
-            right_on=["Tenant", zone_column]
-        )
-        
-        # Fill missing counts with 0
-        site_count_merged["Total Site Count"] = site_count_merged["Total Site Count"].fillna(0).astype(int)
-        
-        # Display the updated table
-        st.subheader("Updated Tenant Table with Total Site Count")
-        st.dataframe(site_count_merged)
+        if df_yesterday is not None:
+            site_count_merged = tenant_grouped_data.merge(
+                tenant_zone_site_count,
+                how="left",
+                left_on=[tenant_column, zone_column],
+                right_on=["Tenant", zone_column]
+            )
+            # Fill missing counts with 0
+            site_count_merged["Total Site Count"] = site_count_merged["Total Site Count"].fillna(0).astype(int)
+            
+            # Display the updated table
+            st.subheader("Updated Tenant Table with Total Site Count")
+            st.dataframe(site_count_merged)
         
         # Overall count
         overall_site_count = (
@@ -124,6 +122,26 @@ if rms_site_file:
     else:
         st.error("Required columns missing from RMS Site List.")
 
+# Step 3: Upload Total DCDB-01 Primary Disconnect History Till Date
+total_history_file = st.sidebar.file_uploader(
+    "3. Total DCDB-01 Primary Disconnect History Till Date", type=["xlsx", "xls"]
+)
+if total_history_file:
+    st.success("Total disconnect history till date uploaded successfully!")
+    df_total_history = pd.read_excel(total_history_file)
+    st.subheader("Total DCDB-01 Primary Disconnect History Till Date")
+    st.dataframe(df_total_history)
+
+# Step 4: Upload Grid Data
+grid_data_file = st.sidebar.file_uploader(
+    "4. Grid Data", type=["xlsx", "xls"]
+)
+if grid_data_file:
+    st.success("Grid data uploaded successfully!")
+    df_grid_data = pd.read_excel(grid_data_file)
+    st.subheader("Grid Data")
+    st.dataframe(df_grid_data)
+
 # Final Message
-if yesterday_file and rms_site_file:
+if yesterday_file and rms_site_file and total_history_file and grid_data_file:
     st.sidebar.success("All files have been uploaded and processed successfully!")
