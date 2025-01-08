@@ -179,6 +179,38 @@ if rms_site_file:
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
 
+# Step 3: Upload Grid Data File
+grid_data_file = st.sidebar.file_uploader(
+    "3. Grid Data", type=["xlsx", "xls"]
+)
+
+if grid_data_file:
+    st.success("Grid Data uploaded successfully!")
+
+    try:
+        # Read Grid Data
+        df_grid_data = pd.read_excel(grid_data_file)
+
+        # Select relevant columns
+        columns_to_show_grid = [
+            "Rms Station", "Site", "Site Alias", "Zone", "Cluster", 
+            "Tenant Name", "AC Availability (%)", "DC Availability (%)"
+        ]
+        df_filtered_grid = df_grid_data[columns_to_show_grid]
+
+        # Group by Tenant and Cluster
+        tenant_zone_grid = df_filtered_grid.groupby(["Tenant Name", "Cluster", "Zone"]).agg({
+            "AC Availability (%)": "mean",
+            "DC Availability (%)": "mean"
+        }).reset_index()
+
+        # Display tenant-wise table for Grid Data
+        st.subheader("Tenant-wise Grid Data (Grouped by Cluster and Zone)")
+        st.dataframe(tenant_zone_grid)
+
+    except Exception as e:
+        st.error(f"Error processing Grid Data: {e}")
+
 # Final Message
-if rms_site_file and alarm_history_file:
+if rms_site_file and alarm_history_file and grid_data_file:
     st.sidebar.success("All files processed successfully!")
