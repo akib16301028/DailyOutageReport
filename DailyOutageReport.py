@@ -108,14 +108,19 @@ if rms_site_file:
                     alarm_data["Elapsed Time"] = pd.to_timedelta(alarm_data["Elapsed Time"], errors="coerce")
                     elapsed_time_sum = alarm_data.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
 
-                    # Convert Elapsed Time sum into 24-hour format (HH:MM:SS) to decimal hours
-                    def convert_to_decimal_hours(elapsed_time):
-                        if pd.notnull(elapsed_time):
-                            # Convert to seconds and then to decimal hours
-                            total_seconds = elapsed_time.total_seconds()
-                            decimal_hours = total_seconds / 3600  # Convert seconds to hours
-                            return round(decimal_hours, 2)  # Round to 2 decimal places
-                        return 0.0
+                    from decimal import Decimal, ROUND_HALF_UP
+
+# Convert the Elapsed Time to decimal hours with rounding to 2 decimal places
+def convert_to_decimal_hours(elapsed_time):
+    if pd.notnull(elapsed_time):
+        # Convert to seconds and then to decimal hours
+        total_seconds = elapsed_time.total_seconds()
+        decimal_hours = total_seconds / 3600  # Convert seconds to hours
+        
+        # Round to 2 decimal places using ROUND_HALF_UP for standard rounding behavior
+        return Decimal(decimal_hours).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+    return Decimal(0.0)
+
 
                     elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
 
