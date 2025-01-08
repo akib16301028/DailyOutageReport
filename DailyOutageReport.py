@@ -44,7 +44,7 @@ if rms_site_file:
                 # Check if BANJO exists in any of the extracted tenant names
                 for tenant in tenants:
                     if "BANJO" in tenant:
-                        return "Banjo"  # Return 'Banjo' if it is found
+                        return "Banjo"
                 return tenants[0] if tenants else "Unknown"  # Return the first tenant found if no 'BANJO'
             return "Unknown"
 
@@ -176,44 +176,53 @@ if rms_site_file:
             except Exception as e:
                 st.error(f"Error processing MTA Site List: {e}")
 
+        # Step 3: Upload Grid Data (with 3 sheets)
+        grid_data_file = st.sidebar.file_uploader("3. Upload Grid Data", type=["xlsx", "xls"])
+
+        if grid_data_file:
+            st.success("Grid Data uploaded successfully!")
+
+            try:
+                # Read the 'Site Wise Summary' sheet from the Grid Data
+                df_grid_data = pd.read_excel(grid_data_file, sheet_name="Site Wise Summary", skiprows=2)
+
+                # Display the column names of Grid Data to verify
+                st.write("Grid Data columns:", df_grid_data.columns)
+
+                # Clean column names by stripping spaces
+                df_grid_data.columns = df_grid_data.columns.str.strip()
+
+                # Filter out sites starting with 'L' in the Site column
+                df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
+
+                # Handle the tenant-wise grouping
+                tenant_names_grid = df_grid_data["Tenant Name"].unique()
+
+                # Store data for aggregation
+                tenant_zone_grid = {}
+
+                # For each tenant, group by Cluster and Zone
+                for tenant in tenant_names_grid:
+                    tenant_df = df_grid_data[df_grid_data["Tenant Name"] == tenant]
+
+                    # Group by Cluster and Zone
+                    grouped_df = tenant_df.groupby(["Cluster", "Zone"]).agg({
+                        "Site Alias": "count",  # Count the number of Site Alias in each Cluster-Zone
+                        "AC Availability (%)": "mean",  # Average of AC Availability
+                    }).reset_index()
+
+                    tenant_zone_grid[tenant] = grouped_df
+
+                    # Display tenant-wise table
+                    st.subheader(f"Tenant: {tenant} - AC Availability by Cluster and Zone")
+                    st.dataframe(grouped_df[["Cluster", "Zone", "Site Alias", "AC Availability (%)"]])
+
+            except Exception as e:
+                st.error(f"Error processing Grid Data: {e}")
+
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
 
-# Step 3: Upload Grid Data File
-grid_data_file = st.sidebar.file_uploader(
-    "3. Grid Data", type=["xlsx", "xls"]
-)
-
-if grid_data_file:
-    st.success("Grid Data uploaded successfully!")
-
-    try:
-        # Read Grid Data, starting from row 3
-        df_grid_data = pd.read_excel(grid_data_file, skiprows=2)
-
-        # Filter out sites starting with 'L'
-        df_grid_filtered = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
-
-        # Select relevant columns
-        columns_to_show_grid = [
-            "Rms Station", "Site", "Site Alias", "Zone", "Cluster", 
-            "Tenant Name", "AC Availability (%)", "DC Availability (%)"
-        ]
-        df_filtered_grid = df_grid_filtered[columns_to_show_grid]
-
-        # Group by Tenant and Cluster
-        tenant_zone_grid = df_filtered_grid.groupby(["Tenant Name", "Cluster", "Zone"]).agg({
-            "AC Availability (%)": "mean",
-            "DC Availability (%)": "mean"
-        }).reset_index()
-
-        # Display tenant-wise table for Grid Data
-        st.subheader("Tenant-wise Grid Data (Grouped by Cluster and Zone)")
-        st.dataframe(tenant_zone_grid)
-
-    except Exception as e:
-        st.error(f"Error processing Grid Data: {e}")
-
 # Final Message
-if rms_site_file and alarm_history_file and grid_data_file:
+if rms_site_file and alarm_history_file:
     st.sidebar.success("All files processed successfully!")
