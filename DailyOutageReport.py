@@ -104,16 +104,23 @@ if rms_site_file:
                     alarm_data["Elapsed Time"] = pd.to_timedelta(alarm_data["Elapsed Time"], errors="coerce")
                     elapsed_time_sum = alarm_data.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
 
-                    # Convert Elapsed Time sum into 24-hour format (HH:MM:SS)
-                    elapsed_time_sum["Elapsed Time"] = elapsed_time_sum["Elapsed Time"].apply(lambda x: str(x).split()[2] if pd.notnull(x) else "00:00:00")
+                    # Convert Elapsed Time sum into 24-hour format (HH:MM:SS) to decimal hours
+                    def convert_to_decimal_hours(elapsed_time):
+                        if pd.notnull(elapsed_time):
+                            # Convert to seconds and then to decimal hours
+                            total_seconds = elapsed_time.total_seconds()
+                            return total_seconds / 3600  # Convert seconds to hours
+                        return 0.0
+
+                    elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
 
                     # Merge RMS data with Alarm History data
                     merged_data = pd.merge(rms_data, grouped_alarm_data, on=["Cluster", "Zone"], how="left")
-                    merged_data = pd.merge(merged_data, elapsed_time_sum, on=["Cluster", "Zone"], how="left")
+                    merged_data = pd.merge(merged_data, elapsed_time_sum[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
 
                     # If there is no matching data in Alarm History, set the count to 0
                     merged_data["Total Affected Site"] = merged_data["Total Affected Site"].fillna(0)
-                    merged_data["Elapsed Time"] = merged_data["Elapsed Time"].fillna("00:00:00")
+                    merged_data["Elapsed Time (Decimal)"] = merged_data["Elapsed Time (Decimal)"].fillna(0.0)
 
                     # Add merged data to the dictionary
                     tenant_zone_merged[tenant] = merged_data
@@ -121,7 +128,7 @@ if rms_site_file:
                 # Display merged table for each tenant
                 for tenant, merged_df in tenant_zone_merged.items():
                     st.subheader(f"Tenant: {tenant} - Merged Cluster and Zone Site Counts (with Affected Sites and Elapsed Time)")
-                    st.dataframe(merged_df[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time"]])
+                    st.dataframe(merged_df[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)"]])
 
             except Exception as e:
                 st.error(f"Error processing Yesterday Alarm History: {e}")
