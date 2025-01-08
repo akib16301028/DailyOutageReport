@@ -1,102 +1,68 @@
 import streamlit as st
 import pandas as pd
 
-# Set the title of the application
-st.title("Tenant-Wise Affected Site Count")
+# Function to extract tenant from Site Alias
+def extract_tenant(site_alias):
+    if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
+        tenant = site_alias.split("(")[1].split(")")[0]
+        return tenant.strip()
+    return ""
+
+# Load Yesterday DCDB-01 Primary Disconnect History
+def load_yesterday_file(file):
+    df = pd.read_excel(file, header=2)  # Start reading from row 3 (index 2)
+    return df
+
+# Load RMS Site List and extract the tenant names
+def load_rms_file(file):
+    df_rms = pd.read_excel(file, header=2)  # Start reading from row 3 (index 2)
+    df_rms['Tenant'] = df_rms['Site Alias'].apply(extract_tenant)
+    return df_rms
+
+# Load the uploaded files
+st.title("Data Upload Application")
 
 # Sidebar for uploading files
 st.sidebar.header("Upload Required Excel Files")
 
 # Step 1: Upload Yesterday DCDB-01 Primary Disconnect History
-yesterday_file = st.sidebar.file_uploader(
-    "1. Yesterday DCDB-01 Primary Disconnect History", type=["xlsx", "xls"]
-)
+yesterday_file = st.sidebar.file_uploader("1. Yesterday DCDB-01 Primary Disconnect History", type=["xlsx", "xls"])
+if yesterday_file:
+    st.success("Yesterday's disconnect history uploaded successfully!")
+    df_yesterday = load_yesterday_file(yesterday_file)
+    st.subheader("Yesterday DCDB-01 Primary Disconnect History")
+    st.dataframe(df_yesterday)
 
 # Step 2: Upload RMS Site List
-rms_site_file = st.sidebar.file_uploader(
-    "2. RMS Site List", type=["xlsx", "xls"]
-)
+rms_site_file = st.sidebar.file_uploader("2. RMS Site List", type=["xlsx", "xls"])
+if rms_site_file:
+    st.success("RMS site list uploaded successfully!")
+    df_rms_site = load_rms_file(rms_site_file)
+    st.subheader("RMS Site List with Tenant")
+    st.dataframe(df_rms_site)
 
+# Filtering function for the Zone and Tenant grouping
+def generate_tenant_wise_table(df_yesterday, df_rms_site):
+    # Group by Tenant and Zone from RMS Site List
+    tenant_zone_groups = df_rms_site.groupby(['Tenant', 'Zone', 'Cluster']).size().reset_index(name='Total Site Count')
+
+    # Group by Tenant and Zone in Yesterday's DCDB History
+    df_yesterday_grouped = df_yesterday.groupby(['Tenant', 'Zone']).size().reset_index(name='Total Affected Site')
+
+    # Merge RMS Site Count with Yesterday Site Counts
+    result_df = pd.merge(tenant_zone_groups, df_yesterday_grouped, on=['Tenant', 'Zone'], how='left')
+
+    # Fix empty counts to 0
+    result_df['Total Affected Site'] = result_df['Total Affected Site'].fillna(0)
+
+    # Remove Tenant column for the final table
+    result_df = result_df[['Cluster', 'Zone', 'Total Site Count', 'Total Affected Site']]
+
+    return result_df
+
+# Display tenant-wise table with zone and cluster
 if yesterday_file and rms_site_file:
-    st.success("Both files uploaded successfully!")
+    tenant_wise_table = generate_tenant_wise_table(df_yesterday, df_rms_site)
+    st.subheader("Tenant-wise Zone and Site Count")
+    st.dataframe(tenant_wise_table)
 
-    try:
-        # Load Yesterday DCDB-01 Primary Disconnect History
-        df_yesterday = pd.read_excel(yesterday_file, skiprows=2)
-        required_columns_yesterday = ["Zone", "Cluster", "Site Alias"]
-
-        if not all(col in df_yesterday.columns for col in required_columns_yesterday):
-            st.error(f"Missing columns in Yesterday DCDB-01 file. Required: {required_columns_yesterday}")
-            st.write("Detected Columns:", df_yesterday.columns.tolist())
-            raise ValueError("Missing required columns in Yesterday DCDB-01 file")
-
-        # Load RMS Site List
-        df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
-        required_columns_rms = ["Zone", "Cluster", "Site Alias", "Site"]
-
-        if not all(col in df_rms_site.columns for col in required_columns_rms):
-            st.error(f"Missing columns in RMS Site List file. Required: {required_columns_rms}")
-            st.write("Detected Columns:", df_rms_site.columns.tolist())
-            raise ValueError("Missing required columns in RMS Site List file")
-
-        # Filter out sites starting with 'L' in the RMS Site List
-        df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
-
-        # Extract tenant from Site Alias in RMS Site List
-        def extract_tenant(site_alias):
-            if isinstance(site_alias, str) and "(" in site_alias and ")" in site_alias:
-                return site_alias.split("(")[1].split(")")[0].strip()
-            return "Unknown"
-
-        df_rms_filtered["Tenant"] = df_rms_filtered["Site Alias"].apply(extract_tenant)
-
-        # Standardize tenant names
-        tenant_mapping = {
-            "BANJO": "Banjo",
-            "BL": "Banglalink",
-            "GP": "Grameenphone",
-            "ROBI": "Robi",
-        }
-        df_rms_filtered["Tenant"] = df_rms_filtered["Tenant"].apply(
-            lambda x: tenant_mapping.get(x, x)
-        )
-
-        # Match Zone and Cluster and count Site Alias
-        zone_cluster_affected = (
-            df_yesterday.groupby(["Zone", "Cluster"])["Site Alias"].nunique().reset_index()
-        )
-        zone_cluster_affected.rename(columns={"Site Alias": "Total Affected Site"}, inplace=True)
-
-        # Ensure all combinations of Zone and Cluster exist in affected table
-        all_zones_clusters = df_rms_filtered[["Zone", "Cluster"]].drop_duplicates()
-        zone_cluster_affected = pd.merge(
-            all_zones_clusters,
-            zone_cluster_affected,
-            on=["Zone", "Cluster"],
-            how="left"
-        ).fillna(0)
-
-        # Tenant-wise affected sites table
-        for tenant in df_rms_filtered["Tenant"].unique():
-            tenant_df = df_rms_filtered[df_rms_filtered["Tenant"] == tenant]
-            tenant_zones_clusters = tenant_df[["Zone", "Cluster"]].drop_duplicates()
-
-            # Merge tenant's zones and clusters with affected data
-            tenant_affected = pd.merge(
-                tenant_zones_clusters,
-                zone_cluster_affected,
-                on=["Zone", "Cluster"],
-                how="left"
-            )
-
-            # Display the affected site count table
-            st.subheader(f"Affected Sites for Tenant: {tenant}")
-            st.dataframe(tenant_affected[["Zone", "Cluster", "Total Affected Site"]])
-
-    except Exception as e:
-        st.error(f"Error processing files: {e}")
-        st.exception(e)
-
-# Final Message
-if yesterday_file and rms_site_file:
-    st.sidebar.success("Both files processed successfully!")
