@@ -116,7 +116,7 @@ if rms_site_file:
                 df_grid_data = pd.read_excel(grid_data_file)
 
                 for tenant in tenant_names:
-                    tenant_grid_data = df_grid_data[df_grid_data["Tenant Name"] == tenant]
+                    tenant_grid_data = df_grid_data[df_grid_data["Tenant"] == tenant]
                     grouped_grid_data = tenant_grid_data.groupby(["Cluster", "Zone"]).agg({
                         "Site Alias": "count",
                         "AC Availability (%)": "mean",
