@@ -109,7 +109,8 @@ if rms_site_file:
                         if pd.notnull(elapsed_time):
                             # Convert to seconds and then to decimal hours
                             total_seconds = elapsed_time.total_seconds()
-                            return total_seconds / 3600  # Convert seconds to hours
+                            decimal_hours = total_seconds / 3600  # Convert seconds to hours
+                            return round(decimal_hours, 2)  # Round to 2 decimal places
                         return 0.0
 
                     elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
