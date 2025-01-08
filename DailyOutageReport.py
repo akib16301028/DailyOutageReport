@@ -97,30 +97,29 @@ if alarm_history_file:
                 return "MTA"
             return "Not MTA"
 
-        # Read the MTA Site List file from the uploaded data
-        if rms_site_file:
-            try:
-                # Read MTA Site List and check columns
-                df_mta = pd.read_excel(rms_site_file)
-                st.write("Columns in MTA Site List:", df_mta.columns)  # Print the columns to check
-                
-                # Ensure the 'Site' column exists in the MTA Site List
-                if "Site" not in df_mta.columns:
-                    st.error("The 'Site' column is missing in the MTA Site List. Please check the file.")
-                else:
-                    # Filter the relevant columns from MTA Site List
-                    columns_to_show_mta = ["Site"]
-                    df_mta_filtered = df_mta[columns_to_show_mta]
+        # Read the MTA Site List directly from the repository directory
+        try:
+            # Assuming the file is named 'MTA Site List.xlsx' and located in the same directory as your script
+            mta_file_path = "MTA Site List.xlsx"  # Adjust this path if it's in a different directory
+            df_mta = pd.read_excel(mta_file_path)
 
-                    # Tag each site in Yesterday Alarm History as "MTA" or "Not MTA"
-                    df_alarm_history["MTA/Not MTA"] = df_alarm_history["Site Alias"].apply(tag_mta)
+            # Ensure the 'Site' column exists in the MTA Site List
+            if "Site" not in df_mta.columns:
+                st.error("The 'Site' column is missing in the MTA Site List. Please check the file.")
+            else:
+                # Filter the relevant columns from MTA Site List
+                columns_to_show_mta = ["Site"]
+                df_mta_filtered = df_mta[columns_to_show_mta]
 
-                    # Display the matched data table
-                    st.subheader("Matched Data from Yesterday Alarm History with MTA/Not MTA Tag")
-                    st.dataframe(df_alarm_history)
+                # Tag each site in Yesterday Alarm History as "MTA" or "Not MTA"
+                df_alarm_history["MTA/Not MTA"] = df_alarm_history["Site Alias"].apply(tag_mta)
 
-            except Exception as e:
-                st.error(f"Error processing MTA Site List: {e}")
+                # Display the matched data table
+                st.subheader("Matched Data from Yesterday Alarm History with MTA/Not MTA Tag")
+                st.dataframe(df_alarm_history)
+
+        except Exception as e:
+            st.error(f"Error processing MTA Site List: {e}")
 
         # Standardize tenant names in Yesterday Alarm History file
         df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
