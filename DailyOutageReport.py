@@ -127,7 +127,7 @@ if rms_site_file:
 
                     # If there is no matching data in Alarm History, set the count to 0
                     merged_data["Total Affected Site"] = merged_data["Total Affected Site"].fillna(0)
-                    merged_data["Elapsed Time (Decimal)"] = merged_data["Elapsed Time (Decimal)"].fillna(0.0)
+                    merged_data["Elapsed Time (Decimal)"] = merged_data["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
 
                     # Display tenant-wise merged table
                     st.subheader(f"Tenant: {tenant} - Cluster and Zone Site Counts with Affected Sites and Elapsed Time")
