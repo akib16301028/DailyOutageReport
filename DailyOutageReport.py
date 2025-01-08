@@ -57,6 +57,8 @@ if rms_site_file:
         tenant_names = df_rms_filtered["Tenant"].unique()
 
         # Display tables for each tenant and group by Cluster and Zone
+        tenant_zone_rms = {}
+
         for tenant in tenant_names:
             tenant_df = df_rms_filtered[df_rms_filtered["Tenant"] == tenant]
 
@@ -66,60 +68,57 @@ if rms_site_file:
             # Sort by Cluster and Zone
             grouped_df = grouped_df.sort_values(by=["Cluster", "Zone"])
 
-            # Display table for the specific Cluster and Zone
-            st.subheader(f"Tenant: {tenant} - Cluster and Zone Site Counts")
-            display_table = grouped_df[["Cluster", "Zone", "Total Site Count"]]
+            tenant_zone_rms[tenant] = grouped_df
 
-            st.dataframe(display_table)
+        # Step 2: Upload Yesterday Alarm History File
+        alarm_history_file = st.sidebar.file_uploader(
+            "2. Yesterday Alarm History", type=["xlsx", "xls"]
+        )
+        if alarm_history_file:
+            st.success("Yesterday Alarm History uploaded successfully!")
 
-        # Display overall total (total site count for each zone)
-        overall_total = df_rms_filtered.groupby("Zone").size().reset_index(name="Total Site Count")
-        st.subheader("Overall Total Site Count by Zone")
-        st.dataframe(overall_total)
+            try:
+                # Read Yesterday Alarm History file, skip first 3 rows
+                df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
+
+                # Standardize tenant names in Yesterday Alarm History file
+                df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
+
+                # Get unique tenants from Yesterday Alarm History
+                tenant_names_history = df_alarm_history["Tenant"].unique()
+
+                # Display merged tables for each tenant and group by Cluster and Zone
+                tenant_zone_merged = {}
+
+                for tenant in tenant_names_history:
+                    # Get RMS Site List data for the tenant
+                    rms_data = tenant_zone_rms.get(tenant, pd.DataFrame())
+
+                    # Get Alarm History data for the tenant
+                    alarm_data = df_alarm_history[df_alarm_history["Tenant"] == tenant]
+
+                    # Group Alarm History data by Cluster and Zone
+                    grouped_alarm_data = alarm_data.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
+
+                    # Merge RMS data with Alarm History data
+                    merged_data = pd.merge(rms_data, grouped_alarm_data, on=["Cluster", "Zone"], how="left")
+
+                    # If there is no matching data in Alarm History, set the count to 0
+                    merged_data["Total Affected Site"] = merged_data["Total Affected Site"].fillna(0)
+
+                    # Add merged data to the dictionary
+                    tenant_zone_merged[tenant] = merged_data
+
+                # Display merged table for each tenant
+                for tenant, merged_df in tenant_zone_merged.items():
+                    st.subheader(f"Tenant: {tenant} - Merged Cluster and Zone Site Counts (with Affected Sites)")
+                    st.dataframe(merged_df[["Cluster", "Zone", "Total Site Count", "Total Affected Site"]])
+
+            except Exception as e:
+                st.error(f"Error processing Yesterday Alarm History: {e}")
 
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
-
-# Step 2: Upload Yesterday Alarm History File
-alarm_history_file = st.sidebar.file_uploader(
-    "2. Yesterday Alarm History", type=["xlsx", "xls"]
-)
-if alarm_history_file:
-    st.success("Yesterday Alarm History uploaded successfully!")
-
-    try:
-        # Read Yesterday Alarm History file, skip first 3 rows
-        df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
-
-        # Standardize tenant names in Yesterday Alarm History file
-        df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
-
-        # Get unique tenants from Yesterday Alarm History
-        tenant_names_history = df_alarm_history["Tenant"].unique()
-
-        # Display tables for each tenant and group by Cluster and Zone
-        for tenant in tenant_names_history:
-            tenant_df_history = df_alarm_history[df_alarm_history["Tenant"] == tenant]
-
-            # Group data by Cluster and Zone
-            grouped_df_history = tenant_df_history.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
-
-            # Sort by Cluster and Zone
-            grouped_df_history = grouped_df_history.sort_values(by=["Cluster", "Zone"])
-
-            # Display table for the specific Cluster and Zone
-            st.subheader(f"Tenant: {tenant} - Yesterday Alarm History Cluster and Zone Site Counts")
-            display_table_history = grouped_df_history[["Cluster", "Zone", "Total Site Count"]]
-
-            st.dataframe(display_table_history)
-
-        # Display overall total (total site count for each zone)
-        overall_total_history = df_alarm_history.groupby("Zone").size().reset_index(name="Total Site Count")
-        st.subheader("Overall Total Site Count by Zone from Yesterday Alarm History")
-        st.dataframe(overall_total_history)
-
-    except Exception as e:
-        st.error(f"Error processing Yesterday Alarm History: {e}")
 
 # Final Message
 if rms_site_file and alarm_history_file:
