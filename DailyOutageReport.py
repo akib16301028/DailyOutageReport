@@ -176,6 +176,41 @@ if rms_site_file:
             except Exception as e:
                 st.error(f"Error processing MTA Site List: {e}")
 
+    if mta_site_file and alarm_history_file:
+    try:
+        # Read the MTA Site List file
+        df_mta = pd.read_excel(mta_site_file)
+
+        # Filter the relevant columns from MTA Site List
+        columns_to_show_mta = ["Site"]
+        df_mta_filtered = df_mta[columns_to_show_mta]
+
+        # Read Yesterday Alarm History file
+        df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
+
+        # Filter the relevant columns from Yesterday Alarm History
+        columns_to_show_alarm = ["Site Alias", "Cluster", "Zone", "Elapsed Time"]
+        df_alarm_history_filtered = df_alarm_history[columns_to_show_alarm]
+
+        # Tag each site in Yesterday Alarm History as "MTA" or "Not MTA"
+        def tag_mta(site):
+            # If the Site in Alarm History exists in the MTA Site List, tag as MTA, otherwise Not MTA
+            if site in df_mta_filtered["Site"].values:
+                return "MTA"
+            return "Not MTA"
+
+        # Apply the tag function to the 'Site Alias' column in Alarm History data
+        df_alarm_history_filtered["MTA/Not MTA"] = df_alarm_history_filtered["Site Alias"].apply(tag_mta)
+
+        # Display the matched data table
+        st.subheader("Matched Data from Yesterday Alarm History with MTA/Not MTA Tag")
+        st.dataframe(df_alarm_history_filtered)
+
+    except Exception as e:
+        st.error(f"Error processing files: {e}")
+else:
+    st.warning("Please upload both MTA Site List and Yesterday Alarm History files.")
+
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
 
