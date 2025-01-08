@@ -166,28 +166,15 @@ if rms_site_file:
                 ]
                 df_filtered_mta = df_mta[columns_to_show]
 
-                # Merge MTA Site List with Yesterday Alarm History based on Site Alias
-                merged_mta_alarm = pd.merge(df_filtered_mta, df_alarm_history, left_on="Site Alias", right_on="Site", how="left")
+                # Group MTA Site List by Cluster and Zone
+                grouped_mta = df_filtered_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
 
-                # Sum Elapsed Time (in seconds) for each Cluster and Zone where Site Alias matches
-                merged_mta_alarm["Elapsed Time"] = pd.to_timedelta(merged_mta_alarm["Elapsed Time"], errors="coerce")
-                elapsed_time_sum = merged_mta_alarm.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-
-                # Convert Elapsed Time sum into 24-hour format (HH:MM:SS) to decimal hours
-                elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
-
-                # Count the number of sites in each group
-                grouped_mta = merged_mta_alarm.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
-
-                # Merge grouped MTA data with Elapsed Time data
-                final_merged_mta_alarm = pd.merge(grouped_mta, elapsed_time_sum, on=["Cluster", "Zone"], how="left")
-
-                # Display the merged MTA Site List with Yesterday Alarm History data
-                st.subheader("Merged MTA Site List and Yesterday Alarm History (with Total Elapsed Time)")
-                st.dataframe(final_merged_mta_alarm[["Cluster", "Zone", "Total Site Count", "Elapsed Time (Decimal)"]])
+                # Display the grouped MTA Site List by Cluster and Zone
+                st.subheader("Grouped MTA Site List by Cluster and Zone")
+                st.dataframe(grouped_mta)
 
             except Exception as e:
-                st.error(f"Error processing MTA Site List with Yesterday Alarm History: {e}")
+                st.error(f"Error processing MTA Site List: {e}")
 
     except Exception as e:
         st.error(f"Error processing RMS Site List: {e}")
