@@ -90,13 +90,6 @@ if alarm_history_file:
         # Filter out sites starting with 'L' in the Site column of Yesterday Alarm History
         df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
 
-        # Function to tag each site as MTA or Not MTA based on the MTA Site List
-        def tag_mta(site):
-            # If the Site in Alarm History exists in the MTA Site List, tag as MTA, otherwise Not MTA
-            if site in df_mta_filtered["Site"].values:
-                return "MTA"
-            return "Not MTA"
-
         # Read the MTA Site List directly from the repository directory
         try:
             # Assuming the file is named 'MTA Site List.xlsx' and located in the same directory as your script
@@ -110,6 +103,13 @@ if alarm_history_file:
                 # Filter the relevant columns from MTA Site List
                 columns_to_show_mta = ["Site"]
                 df_mta_filtered = df_mta[columns_to_show_mta]
+
+                # Function to tag each site as MTA or Not MTA based on the MTA Site List
+                def tag_mta(site_alias):
+                    # Check if the Site Alias exists in the MTA Site List
+                    if site_alias in df_mta_filtered["Site"].values:
+                        return "MTA"
+                    return "Not MTA"
 
                 # Tag each site in Yesterday Alarm History as "MTA" or "Not MTA"
                 df_alarm_history["MTA/Not MTA"] = df_alarm_history["Site Alias"].apply(tag_mta)
