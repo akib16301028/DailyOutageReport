@@ -165,7 +165,7 @@ if total_elapse_file:
         if total_elapse_file.name.endswith(".csv"):
             df_total_elapse = pd.read_csv(total_elapse_file)
         else:
-            df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)  # Header starts from row 1
+            df_total_elapse = safe_read_excel(total_elapse_file, skiprows=0)  # Header starts from row 1
 
         # Filter out rows where Site column starts with 'L'
         df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
@@ -175,24 +175,6 @@ if total_elapse_file:
 
         # Convert Elapsed Time to timedelta for summation
         df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
-
-        # Tenant-wise table grouped by Cluster and Zone with summed Elapsed Time
-        tenant_total_elapsed = {}
-        for tenant in df_total_elapse["Tenant"].unique():
-            tenant_df = df_total_elapse[df_total_elapse["Tenant"] == tenant]
-            grouped_elapsed = (
-                tenant_df.groupby(["Cluster", "Zone"])["Elapsed Time"]
-                .sum()
-                .reset_index()
-            )
-            # Convert total elapsed time to decimal hours
-            grouped_elapsed["Elapsed Time (Decimal)"] = grouped_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
-
-            tenant_total_elapsed[tenant] = grouped_elapsed
-
-            # Display tenant-wise table
-            st.subheader(f"Tenant: {tenant} - Total Elapsed Time Till Date")
-            st.dataframe(grouped_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]])
 
         # Overall table for all tenants
         overall_elapsed = (
@@ -205,6 +187,17 @@ if total_elapse_file:
         st.subheader("Overall Total Elapsed Time Till Date for All Tenants")
         st.dataframe(overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]])
 
+        # Merge with the final overall merged data
+        if rms_site_file and alarm_history_file and grid_data_file:
+            overall_merged_with_grid["Total Redeemed Hour"] = pd.merge(
+                overall_merged_with_grid,
+                overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
+                on=["Cluster", "Zone"],
+                how="left"
+            )["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
+
+            st.subheader("Final Overall Merged Data with Total Redeemed Hour")
+            st.dataframe(overall_merged_with_grid)
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
 
