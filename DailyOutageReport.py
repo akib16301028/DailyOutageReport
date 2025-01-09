@@ -155,6 +155,59 @@ if rms_site_file and alarm_history_file and grid_data_file:
     except Exception as e:
         st.error(f"Error during merging: {e}")
 
+# Step 4: Upload Total Elapse Till Date
+total_elapse_file = st.sidebar.file_uploader("4. Total Elapse Till Date", type=["xlsx", "xls", "csv"])
+if total_elapse_file:
+    st.success("Total Elapse Till Date uploaded successfully!")
+
+    try:
+        # Detect file type and load accordingly
+        if total_elapse_file.name.endswith(".csv"):
+            df_total_elapse = pd.read_csv(total_elapse_file)
+        else:
+            df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)  # Header starts from row 1
+
+        # Filter out rows where Site column starts with 'L'
+        df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
+
+        # Standardize tenant names
+        df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
+
+        # Convert Elapsed Time to timedelta for summation
+        df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
+
+        # Tenant-wise table grouped by Cluster and Zone with summed Elapsed Time
+        tenant_total_elapsed = {}
+        for tenant in df_total_elapse["Tenant"].unique():
+            tenant_df = df_total_elapse[df_total_elapse["Tenant"] == tenant]
+            grouped_elapsed = (
+                tenant_df.groupby(["Cluster", "Zone"])["Elapsed Time"]
+                .sum()
+                .reset_index()
+            )
+            # Convert total elapsed time to decimal hours
+            grouped_elapsed["Elapsed Time (Decimal)"] = grouped_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+
+            tenant_total_elapsed[tenant] = grouped_elapsed
+
+            # Display tenant-wise table
+            st.subheader(f"Tenant: {tenant} - Total Elapsed Time Till Date")
+            st.dataframe(grouped_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]])
+
+        # Overall table for all tenants
+        overall_elapsed = (
+            df_total_elapse.groupby(["Cluster", "Zone"])["Elapsed Time"]
+            .sum()
+            .reset_index()
+        )
+        overall_elapsed["Elapsed Time (Decimal)"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+
+        st.subheader("Overall Total Elapsed Time Till Date for All Tenants")
+        st.dataframe(overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]])
+
+    except Exception as e:
+        st.error(f"Error processing Total Elapse Till Date: {e}")
+
 # Final Message
-if rms_site_file and alarm_history_file and grid_data_file:
+if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
     st.sidebar.success("All files processed and merged successfully!")
