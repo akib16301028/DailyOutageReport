@@ -208,67 +208,6 @@ if total_elapse_file:
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
 
-# Step 5: Merge Overall Merged Tables with Total Elapsed Time Till Date
-if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
-    try:
-        # Tenant-wise merge of merged data with Total Elapse Till Date
-        for tenant, tenant_final_merged in tenant_merged_data.items():
-            tenant_elapsed = tenant_total_elapsed.get(tenant, pd.DataFrame())
-
-            # Merge tenant-wise tables
-            tenant_final_with_elapsed = pd.merge(
-                tenant_final_merged,
-                tenant_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
-                on=["Cluster", "Zone"],
-                how="left",
-                suffixes=("", "_TotalElapse")
-            )
-
-            # Add Total Redeemed Hour column
-            tenant_final_with_elapsed["Total Redeemed Hour"] = (
-                tenant_final_with_elapsed["Elapsed Time (Decimal)"] + 
-                tenant_final_with_elapsed["Elapsed Time (Decimal)_TotalElapse"].fillna(Decimal(0.0))
-            )
-
-            # Display the tenant-wise final table
-            st.subheader(f"Tenant: {tenant} - Final Table with Total Redeemed Hour")
-            st.dataframe(
-                tenant_final_with_elapsed[
-                    ["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
-                     "Elapsed Time (Decimal)", "Elapsed Time (Decimal)_TotalElapse", 
-                     "Total Redeemed Hour"]
-                ]
-            )
-
-        # Overall merge of all tenants
-        overall_final_with_elapsed = pd.merge(
-            overall_final_merged,
-            overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
-            on=["Cluster", "Zone"],
-            how="left",
-            suffixes=("", "_TotalElapse")
-        )
-
-        # Add Total Redeemed Hour column
-        overall_final_with_elapsed["Total Redeemed Hour"] = (
-            overall_final_with_elapsed["Elapsed Time (Decimal)"] + 
-            overall_final_with_elapsed["Elapsed Time (Decimal)_TotalElapse"].fillna(Decimal(0.0))
-        )
-
-        # Display the overall final table
-        st.subheader("Overall Final Table with Total Redeemed Hour")
-        st.dataframe(
-            overall_final_with_elapsed[
-                ["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
-                 "Elapsed Time (Decimal)", "Elapsed Time (Decimal)_TotalElapse", 
-                 "Total Redeemed Hour"]
-            ]
-        )
-
-    except Exception as e:
-        st.error(f"Error during final merge with Total Elapsed Time: {e}")
-
-
 # Final Message
 if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
     st.sidebar.success("All files processed and merged successfully!")
