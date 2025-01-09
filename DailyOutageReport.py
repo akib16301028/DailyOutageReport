@@ -150,32 +150,6 @@ if rms_site_file:
             except Exception as e:
                 st.error(f"Error processing Yesterday Alarm History: {e}")
 
-        # Checkbox to view MTA Site List
-        show_mta_site_list = st.sidebar.checkbox("Show MTA Site List")
-
-        if show_mta_site_list:
-            try:
-                # Upload MTA Site List (assuming it's present in the repo directory)
-                mta_file_path = "MTA Site List.xlsx"  # Ensure this file is in the same directory as the script
-                df_mta = pd.read_excel(mta_file_path)
-
-                # Select columns for MTA Site List
-                columns_to_show = [
-                    "Rms Station", "Site", "Site Alias", "Zone", "Cluster",
-                    "District", "Site Attributes", "Alarm Status", "Installation Date"
-                ]
-                df_filtered_mta = df_mta[columns_to_show]
-
-                # Group MTA Site List by Cluster and Zone
-                grouped_mta = df_filtered_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
-
-                # Display the grouped MTA Site List by Cluster and Zone
-                st.subheader("Grouped MTA Site List by Cluster and Zone")
-                st.dataframe(grouped_mta)
-
-            except Exception as e:
-                st.error(f"Error processing MTA Site List: {e}")
-
         # Step 3: Upload Grid Data (with 3 sheets)
         grid_data_file = st.sidebar.file_uploader("3. Upload Grid Data", type=["xlsx", "xls"])
 
@@ -223,15 +197,23 @@ if rms_site_file:
                     "AC Availability (%)": "mean",  # Average AC Availability
                 }).reset_index()
 
-                # Display combined table for all tenants
-                st.subheader("Combined AC Availability by Cluster and Zone for All Tenants")
-                st.dataframe(combined_grid_data[["Cluster", "Zone", "Site Alias", "AC Availability (%)"]])
+                # Merge overall merged data with the combined grid data
+                merged_final_data = pd.merge(
+                    overall_merged_data,
+                    combined_grid_data[["Cluster", "Zone", "AC Availability (%)"]],
+                    on=["Cluster", "Zone"],
+                    how="left"
+                )
+
+                # Add a new column for Grid Availability
+                merged_final_data["Grid Availability"] = merged_final_data["AC Availability (%)"]
+
+                # Display the final merged data
+                st.subheader("Final Merged Table (with Grid Availability)")
+                st.dataframe(merged_final_data[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability"]])
 
             except Exception as e:
                 st.error(f"Error processing Grid Data: {e}")
-
-    except Exception as e:
-        st.error(f"Error processing RMS Site List: {e}")
 
 # Final Message
 if rms_site_file and alarm_history_file and grid_data_file:
