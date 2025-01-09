@@ -121,90 +121,35 @@ if grid_data_file:
     except Exception as e:
         st.error(f"Error processing Grid Data: {e}")
 
-# Merge Overall and Tenant-Specific Data
-if rms_site_file and alarm_history_file and grid_data_file:
-    try:
-        for tenant, tenant_merged in tenant_merged_data.items():
-            grid_data = tenant_zone_grid.get(tenant, pd.DataFrame())
-            merged_tenant_final = pd.merge(
-                tenant_merged,
-                grid_data[["Cluster", "Zone", "AC Availability (%)"]],
-                on=["Cluster", "Zone"],
-                how="left"
-            )
-
-            merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
-            st.subheader(f"Tenant: {tenant} - Final Merged Table")
-            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability"]])
-
-        combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
-            "AC Availability (%)": "mean",
-        }).reset_index()
-
-        overall_final_merged = pd.merge(
-            merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index(),
-            combined_grid_data,
-            on=["Cluster", "Zone"],
-            how="left"
-        )
-
-        overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
-        st.subheader("Overall Merged Table")
-        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability"]])
-
-    except Exception as e:
-        st.error(f"Error during merging: {e}")
-
 # Step 4: Upload Total Elapse Till Date
 total_elapse_file = st.sidebar.file_uploader("4. Total Elapse Till Date", type=["xlsx", "xls", "csv"])
 if total_elapse_file:
     st.success("Total Elapse Till Date uploaded successfully!")
+
     try:
-        # Detect file type and load accordingly
         if total_elapse_file.name.endswith(".csv"):
             df_total_elapse = pd.read_csv(total_elapse_file)
         else:
-            df_total_elapse = safe_read_excel(total_elapse_file, skiprows=0)  # Header starts from row 1
+            df_total_elapse = pd.read_excel(total_elapse_file)
 
-        # Filter out rows where Site column starts with 'L'
         df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
-
-        # Standardize tenant names
         df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
-
-        # Convert Elapsed Time to timedelta for summation
         df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
-
-        # Group and calculate total elapsed time
-        overall_elapsed = (
-            df_total_elapse.groupby(["Cluster", "Zone"])["Elapsed Time"]
-            .sum()
-            .reset_index()
-        )
+        overall_elapsed = df_total_elapse.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
         overall_elapsed["Elapsed Time (Decimal)"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
 
-        # Merge all data
-        if rms_site_file and alarm_history_file and grid_data_file:
-            try:
-                # Merge with grid data
-                overall_merged_with_grid = pd.merge(overall_merged_data, overall_grid_data, on=["Cluster", "Zone"], how="left")
+        overall_final_merged = merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index()
+        final_merged_table = pd.merge(
+            overall_final_merged,
+            overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
+            on=["Cluster", "Zone"],
+            how="left"
+        )
+        final_merged_table.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
+        final_merged_table["Total Redeemed Hour"].fillna(Decimal(0.0), inplace=True)
 
-                # Merge with total elapsed time
-                final_merged_table = pd.merge(
-                    overall_merged_with_grid,
-                    overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
-                    on=["Cluster", "Zone"],
-                    how="left"
-                )
-                final_merged_table.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
-                final_merged_table["Total Redeemed Hour"].fillna(Decimal(0.0), inplace=True)
-
-                # Display final merged table
-                st.subheader("Final Merged Table with Total Redeemed Hour")
-                st.dataframe(final_merged_table)
-            except Exception as e:
-                st.error(f"Error merging final tables: {e}")
+        st.subheader("Final Merged Table with Total Redeemed Hour")
+        st.dataframe(final_merged_table)
 
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
-
