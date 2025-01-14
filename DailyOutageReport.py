@@ -173,7 +173,7 @@ if total_elapse_file:
             )
             final_merged_tenant["Remaining Hour"] = (
                 final_merged_tenant["Total Allowable Limit (Hr)"] - 
-                final_merged_tenant["Elapsed Time (Decimal)_Elapsed"]
+                final_merged_tenant["Elapsed Time (Decimal)_Elapsed"].fillna(0).astype(float)
             )
 
             st.subheader(f"Tenant: {tenant} - Final Merged Table with Elapsed Time and Calculated Columns")
@@ -211,7 +211,7 @@ if total_elapse_file:
         # Replace None values for Remaining Hour with 0
         overall_final_merged["Remaining Hour"] = (
             overall_final_merged["Total Allowable Limit (Hr)"] - 
-            overall_final_merged["Elapsed Time (Decimal)"].fillna(Decimal(0.0)).astype(float)
+            overall_final_merged["Elapsed Time (Decimal)"].fillna(0).astype(float)
         )
 
         st.subheader("Overall Final Merged Table with Elapsed Time and Calculated Columns")
