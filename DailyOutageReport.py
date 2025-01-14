@@ -165,7 +165,18 @@ if total_elapse_file:
                 how="left",
                 suffixes=("_Final", "_Elapsed"),
             )
-            st.subheader(f"Tenant: {tenant} - Final Merged Table with Elapsed Time")
+            
+            # Calculate Total Allowable Limit (Hr) and Remaining Hour
+            final_merged_tenant["Total Allowable Limit (Hr)"] = (
+                (final_merged_tenant["Total Site Count"] * 24 * 30) - 
+                (final_merged_tenant["Total Site Count"] * 24 * 30 * 0.9985)
+            )
+            final_merged_tenant["Remaining Hour"] = (
+                final_merged_tenant["Total Allowable Limit (Hr)"] - 
+                final_merged_tenant["Elapsed Time (Decimal)_Elapsed"]
+            )
+
+            st.subheader(f"Tenant: {tenant} - Final Merged Table with Elapsed Time and Calculated Columns")
             st.dataframe(final_merged_tenant)
 
         # Overall table for all tenants
@@ -183,7 +194,17 @@ if total_elapse_file:
             how="left",
         )
 
-        st.subheader("Overall Final Merged Table with Elapsed Time")
+        # Calculate Total Allowable Limit (Hr) and Remaining Hour for overall table
+        overall_final_merged["Total Allowable Limit (Hr)"] = (
+            (overall_final_merged["Total Site Count"] * 24 * 30) -
+            (overall_final_merged["Total Site Count"] * 24 * 30 * 0.9985)
+        )
+        overall_final_merged["Remaining Hour"] = (
+            overall_final_merged["Total Allowable Limit (Hr)"] - 
+            overall_final_merged["Elapsed Time (Decimal)_Elapsed"]
+        )
+
+        st.subheader("Overall Final Merged Table with Elapsed Time and Calculated Columns")
         st.dataframe(overall_final_merged)
 
     except Exception as e:
