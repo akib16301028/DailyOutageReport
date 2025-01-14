@@ -144,6 +144,9 @@ if rms_site_file and alarm_history_file and grid_data_file:
 
             merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
             
+            # Replace None or NaN values in "Total Reedemed Hour" with 0
+            merged_tenant_final["Total Reedemed Hour"] = merged_tenant_final["Total Reedemed Hour"].fillna(0)
+
             # Calculate Total Allowable Limit and Remaining Hour
             merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"].apply(calculate_total_allowable_limit)
             merged_tenant_final["Remaining Hour"] = merged_tenant_final.apply(
@@ -168,6 +171,9 @@ if rms_site_file and alarm_history_file and grid_data_file:
 
         overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
         
+        # Replace None or NaN values in "Total Reedemed Hour" with 0 for overall data
+        overall_final_merged["Total Reedemed Hour"] = overall_final_merged["Total Reedemed Hour"].fillna(0)
+
         # Calculate Total Allowable Limit and Remaining Hour for overall
         overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"].apply(calculate_total_allowable_limit)
         overall_final_merged["Remaining Hour"] = overall_final_merged.apply(
