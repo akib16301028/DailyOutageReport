@@ -100,29 +100,8 @@ if alarm_history_file:
     except Exception as e:
         st.error(f"Error processing Yesterday Alarm History: {e}")
 
-# Step 3: Upload Grid Data
-grid_data_file = st.sidebar.file_uploader("3. Grid Data", type=["xlsx", "xls"])
-if grid_data_file:
-    st.success("Grid Data uploaded successfully!")
-
-    try:
-        df_grid_data = pd.read_excel(grid_data_file, sheet_name="Site Wise Summary", skiprows=2)
-        df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
-
-        df_grid_data = df_grid_data[["Cluster", "Zone", "Tenant Name", "AC Availability (%)"]]
-        df_grid_data["Tenant Name"] = df_grid_data["Tenant Name"].apply(standardize_tenant)
-
-        tenant_zone_grid = {}
-        for tenant in df_grid_data["Tenant Name"].unique():
-            tenant_df = df_grid_data[df_grid_data["Tenant Name"] == tenant]
-            grouped_grid = tenant_df.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
-            tenant_zone_grid[tenant] = grouped_grid
-
-    except Exception as e:
-        st.error(f"Error processing Grid Data: {e}")
-
-# Step 4: Upload Total Elapse Till Date
-total_elapse_file = st.sidebar.file_uploader("4. Total Elapse Till Date", type=["xlsx", "xls", "csv"])
+# Step 3: Upload Total Elapse Till Date
+total_elapse_file = st.sidebar.file_uploader("3. Total Elapse Till Date", type=["xlsx", "xls", "csv"])
 if total_elapse_file:
     st.success("Total Elapse Till Date uploaded successfully!")
 
@@ -131,7 +110,7 @@ if total_elapse_file:
         if total_elapse_file.name.endswith(".csv"):
             df_total_elapse = pd.read_csv(total_elapse_file)
         else:
-            df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)
+            df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)  # Header starts from row 1
 
         # Filter out rows where Site column starts with 'L'
         df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
@@ -151,7 +130,9 @@ if total_elapse_file:
                 .sum()
                 .reset_index()
             )
+            # Convert total elapsed time to decimal hours
             grouped_elapsed["Elapsed Time (Decimal)"] = grouped_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+
             tenant_total_elapsed[tenant] = grouped_elapsed
 
         # Overall table for all tenants
@@ -165,33 +146,22 @@ if total_elapse_file:
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
 
-# Merge Overall and Tenant-Specific Data with Total Elapsed Time Till Date
-if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
+# Merge Overall and Tenant-Specific Data
+if rms_site_file and alarm_history_file and total_elapse_file:
     try:
         # Overall Merged Table
-        overall_final_merged = pd.merge(
-            merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index(),
-            combined_grid_data,
-            on=["Cluster", "Zone"],
-            how="left"
-        )
-
-        overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
-
-        # Merge with Overall Total Elapsed Time Till Date
         overall_final_combined = pd.merge(
-            overall_final_merged,
+            merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index(),
             overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
             on=["Cluster", "Zone"],
             how="left"
         )
         overall_final_combined.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
         st.subheader("Overall Merged Table with Total Redeemed Hour")
-        st.dataframe(overall_final_combined[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Grid Availability", "Total Redeemed Hour"]])
+        st.dataframe(overall_final_combined[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Total Redeemed Hour"]])
 
         # Tenant-wise Merged Tables
         for tenant, tenant_merged in tenant_merged_data.items():
-            # Merge Final Merged Table and Total Elapsed Time Till Date for each tenant
             elapsed_data = tenant_total_elapsed.get(tenant, pd.DataFrame())
             merged_tenant_final = pd.merge(
                 tenant_merged,
@@ -200,10 +170,12 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                 how="left"
             )
             merged_tenant_final.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
-
-            # Display the merged table
             st.subheader(f"Tenant: {tenant} - Final Merged Table with Total Redeemed Hour")
-            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Grid Availability", "Total Redeemed Hour"]])
+            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Total Redeemed Hour"]])
 
     except Exception as e:
         st.error(f"Error during final merging: {e}")
+
+# Final Message
+if rms_site_file and alarm_history_file and total_elapse_file:
+    st.sidebar.success("All files processed and merged successfully!")
