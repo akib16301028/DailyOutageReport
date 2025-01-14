@@ -137,6 +137,7 @@ if rms_site_file and alarm_history_file and grid_data_file:
             st.subheader(f"Tenant: {tenant} - Final Merged Table")
             st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability"]])
 
+        # Combine all tenants for the overall table
         combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
             "AC Availability (%)": "mean",
         }).reset_index()
