@@ -135,7 +135,7 @@ if rms_site_file and alarm_history_file and grid_data_file:
 
             merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
             st.subheader(f"Tenant: {tenant} - Final Merged Table")
-            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability"]])
+            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Elapsed Time (Decimal)"]])
 
         combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
             "AC Availability (%)": "mean",
@@ -150,7 +150,7 @@ if rms_site_file and alarm_history_file and grid_data_file:
 
         overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
         st.subheader("Overall Merged Table")
-        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability"]])
+        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Elapsed Time (Decimal)"]])
 
     except Exception as e:
         st.error(f"Error during merging: {e}")
