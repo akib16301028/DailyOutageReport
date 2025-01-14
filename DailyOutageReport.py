@@ -165,7 +165,10 @@ if total_elapse_file:
                 how="left",
                 suffixes=("_Final", "_Elapsed"),
             )
-            
+
+            # Ensure correct column names after merge
+            st.write(f"Columns after merge for tenant {tenant}: {final_merged_tenant.columns}")
+
             # Calculate Total Allowable Limit (Hr) and Remaining Hour
             final_merged_tenant["Total Allowable Limit (Hr)"] = (
                 (final_merged_tenant["Total Site Count"] * 24 * 30) - 
