@@ -165,24 +165,16 @@ if total_elapse_file:
                 how="left",
                 suffixes=("_Final", "_Elapsed"),
             )
-
-            # Ensure correct column names after merge
-            st.write(f"Columns after merge for tenant {tenant}: {final_merged_tenant.columns}")
-
+            
             # Calculate Total Allowable Limit (Hr) and Remaining Hour
             final_merged_tenant["Total Allowable Limit (Hr)"] = (
                 (final_merged_tenant["Total Site Count"] * 24 * 30) - 
                 (final_merged_tenant["Total Site Count"] * 24 * 30 * 0.9985)
             )
-
-            # Replace None values with 0 for Remaining Hour
             final_merged_tenant["Remaining Hour"] = (
                 final_merged_tenant["Total Allowable Limit (Hr)"] - 
-                final_merged_tenant["Elapsed Time (Decimal)_Elapsed"].fillna(Decimal(0.0)).astype(float)
+                final_merged_tenant["Elapsed Time (Decimal)_Elapsed"]
             )
-
-            # Replace None values in the Total Allowable Limit with 0 as well
-            final_merged_tenant["Total Allowable Limit (Hr)"] = final_merged_tenant["Total Allowable Limit (Hr)"].fillna(Decimal(0.0))
 
             st.subheader(f"Tenant: {tenant} - Final Merged Table with Elapsed Time and Calculated Columns")
             st.dataframe(final_merged_tenant)
@@ -195,8 +187,16 @@ if total_elapse_file:
         )
         overall_elapsed["Elapsed Time (Decimal)"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
 
+        # Merge the overall elapsed time with the total merged data for all tenants
+        merged_all_tenants_grouped = merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index()
+
+        # Ensure column names are consistent before merging
+        merged_all_tenants_grouped["Total Site Count"] = merged_all_tenants_grouped["Total Site Count"].fillna(0).astype(float)
+        overall_elapsed["Elapsed Time (Decimal)"] = overall_elapsed["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
+
+        # Merge overall data with tenant data
         overall_final_merged = pd.merge(
-            merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index(),
+            merged_all_tenants_grouped,
             overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
             on=["Cluster", "Zone"],
             how="left",
@@ -204,13 +204,14 @@ if total_elapse_file:
 
         # Calculate Total Allowable Limit (Hr) and Remaining Hour for overall table
         overall_final_merged["Total Allowable Limit (Hr)"] = (
-            (overall_final_merged["Total Site Count"].astype(float) * 24 * 30) - 
-            (overall_final_merged["Total Site Count"].astype(float) * 24 * 30 * 0.9985)
+            (overall_final_merged["Total Site Count"] * 24 * 30) - 
+            (overall_final_merged["Total Site Count"] * 24 * 30 * 0.9985)
         )
 
+        # Replace None values for Remaining Hour with 0
         overall_final_merged["Remaining Hour"] = (
             overall_final_merged["Total Allowable Limit (Hr)"] - 
-            overall_final_merged["Elapsed Time (Decimal)_Elapsed"].fillna(Decimal(0.0)).astype(float)
+            overall_final_merged["Elapsed Time (Decimal)"].fillna(Decimal(0.0)).astype(float)
         )
 
         st.subheader("Overall Final Merged Table with Elapsed Time and Calculated Columns")
