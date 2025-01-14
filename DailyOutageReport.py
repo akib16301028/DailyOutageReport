@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 from decimal import Decimal, ROUND_HALF_UP
 
+# Set the title of the application
+st.title("Tenant-Wise Data Processing Application")
+
+# Sidebar for uploading files
+st.sidebar.header("Upload Required Excel Files")
+
 # Function to standardize tenant names
 def standardize_tenant(tenant_name):
     tenant_mapping = {
@@ -30,14 +36,6 @@ def convert_to_decimal_hours(elapsed_time):
         decimal_hours = total_seconds / 3600
         return Decimal(decimal_hours).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
     return Decimal(0.0)
-
-# Function to calculate Total Allowable Limit
-def calculate_total_allowable_limit(total_site_count):
-    return (total_site_count * 24 * 30) - ((total_site_count * 24 * 30) * 0.9985)
-
-# Function to calculate Remaining Hour
-def calculate_remaining_hour(total_allowable_limit, total_reedemed_hour):
-    return total_allowable_limit - total_reedemed_hour
 
 # Step 1: Upload RMS Site List
 rms_site_file = st.sidebar.file_uploader("1. RMS Site List", type=["xlsx", "xls"])
@@ -88,11 +86,7 @@ if alarm_history_file:
             grouped_alarm_data = alarm_data.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
             alarm_data["Elapsed Time"] = pd.to_timedelta(alarm_data["Elapsed Time"], errors="coerce")
             elapsed_time_sum = alarm_data.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-
-            # Using .loc for proper column assignment
-            # Change this line
-            elapsed_time_sum.loc[:, "Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
-
+            elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
 
             merged_data = pd.merge(rms_data, grouped_alarm_data, on=["Cluster", "Zone"], how="left")
             merged_data = pd.merge(merged_data, elapsed_time_sum[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
@@ -127,12 +121,51 @@ if grid_data_file:
     except Exception as e:
         st.error(f"Error processing Grid Data: {e}")
 
+# Step 4: Upload Total Elapse Till Date
+total_elapse_file = st.sidebar.file_uploader("4. Total Elapse Till Date", type=["xlsx", "xls", "csv"])
+if total_elapse_file:
+    st.success("Total Elapse Till Date uploaded successfully!")
+
+    try:
+        # Detect file type and load accordingly
+        if total_elapse_file.name.endswith(".csv"):
+            df_total_elapse = pd.read_csv(total_elapse_file)
+        else:
+            df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)  # Header starts from row 1
+
+        # Filter out rows where Site column starts with 'L'
+        df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
+
+        # Standardize tenant names
+        df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
+
+        # Convert Elapsed Time to timedelta for summation
+        df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
+
+        # Tenant-wise table grouped by Cluster and Zone with summed Elapsed Time
+        tenant_total_elapsed = {}
+        for tenant in df_total_elapse["Tenant"].unique():
+            tenant_df = df_total_elapse[df_total_elapse["Tenant"] == tenant]
+            grouped_elapsed = (
+                tenant_df.groupby(["Cluster", "Zone"])["Elapsed Time"]
+                .sum()
+                .reset_index()
+            )
+            # Convert total elapsed time to decimal hours
+            grouped_elapsed["Total Reedemed Hour"] = grouped_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+
+            tenant_total_elapsed[tenant] = grouped_elapsed
+
+    except Exception as e:
+        st.error(f"Error processing Total Elapse Till Date: {e}")
+
 # Merge Overall and Tenant-Specific Data
-if rms_site_file and alarm_history_file and grid_data_file:
+if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
     try:
         for tenant, tenant_merged in tenant_merged_data.items():
             grid_data = tenant_zone_grid.get(tenant, pd.DataFrame())
             
+            # Merge tenant-specific data with Grid Data
             merged_tenant_final = pd.merge(
                 tenant_merged,
                 grid_data[["Cluster", "Zone", "AC Availability (%)"]],
@@ -142,22 +175,17 @@ if rms_site_file and alarm_history_file and grid_data_file:
 
             merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
             
-            # Replace None or NaN values in "Total Reedemed Hour" with 0
-            merged_tenant_final["Total Reedemed Hour"] = pd.to_numeric(merged_tenant_final["Total Reedemed Hour"], errors="coerce").fillna(0)
+            # Merge with Total Reedemed Hour for each tenant
+            total_elapsed_data = tenant_total_elapsed.get(tenant, pd.DataFrame())
+            merged_tenant_final = pd.merge(
+                merged_tenant_final,
+                total_elapsed_data[["Cluster", "Zone", "Total Reedemed Hour"]],
+                on=["Cluster", "Zone"],
+                how="left"
+            )
 
-            # Ensure that "Total Reedemed Hour" column is present and merged correctly
-            if "Total Reedemed Hour" in merged_tenant_final.columns:
-                st.subheader(f"Tenant: {tenant} - Final Merged Table")
-                merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"].apply(calculate_total_allowable_limit)
-                merged_tenant_final["Remaining Hour"] = merged_tenant_final.apply(
-                    lambda row: calculate_remaining_hour(row["Total Allowable Limit (Hr)"], row["Total Reedemed Hour"]), axis=1
-                )
-
-                st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
-                                                 "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour", 
-                                                 "Total Allowable Limit (Hr)", "Remaining Hour"]])
-            else:
-                st.warning(f"Total Reedemed Hour not found for Tenant: {tenant}")
+            st.subheader(f"Tenant: {tenant} - Final Merged Table")
+            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour"]])
 
         # Combine all tenants for the overall table
         combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
@@ -172,24 +200,28 @@ if rms_site_file and alarm_history_file and grid_data_file:
         )
 
         overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
-        
-        # Replace None or NaN values in "Total Reedemed Hour" with 0 for overall data
-        overall_final_merged["Total Reedemed Hour"] = pd.to_numeric(overall_final_merged["Total Reedemed Hour"], errors="coerce").fillna(0)
 
-        # Calculate Total Allowable Limit and Remaining Hour for overall
-        overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"].apply(calculate_total_allowable_limit)
-        overall_final_merged["Remaining Hour"] = overall_final_merged.apply(
-            lambda row: calculate_remaining_hour(row["Total Allowable Limit (Hr)"], row["Total Reedemed Hour"]), axis=1
+        # Merge with Total Reedemed Hour for overall data
+        overall_elapsed = (
+            df_total_elapse.groupby(["Cluster", "Zone"])["Elapsed Time"]
+            .sum()
+            .reset_index()
+        )
+        overall_elapsed["Total Reedemed Hour"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+
+        overall_final_merged = pd.merge(
+            overall_final_merged,
+            overall_elapsed[["Cluster", "Zone", "Total Reedemed Hour"]],
+            on=["Cluster", "Zone"],
+            how="left"
         )
 
         st.subheader("Overall Merged Table")
-        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
-                                          "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour", 
-                                          "Total Allowable Limit (Hr)", "Remaining Hour"]])
+        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour"]])
 
     except Exception as e:
         st.error(f"Error during merging: {e}")
 
 # Final Message
-if rms_site_file and alarm_history_file and grid_data_file:
+if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
     st.sidebar.success("All files processed and merged successfully!")
