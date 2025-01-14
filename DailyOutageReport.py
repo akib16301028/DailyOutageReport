@@ -222,63 +222,6 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
     except Exception as e:
         st.error(f"Error during merging: {e}")
 
-# Keep all your original code here, up to the point where the tables are displayed.
-
-# Step 5: Add Total Allowable Limit (Hr) and Remaining Hour columns to the tenant-specific and overall tables
-try:
-    for tenant, tenant_merged in tenant_merged_data.items():
-        # Calculate Total Allowable Limit (Hr) and Remaining Hour for each tenant's merged table
-        tenant_merged["Total Allowable Limit (Hr)"] = tenant_merged["Total Site Count"].apply(
-            lambda x: (x * 24 * 30) - ((x * 24 * 30) * 0.9985)
-        )
-        tenant_merged["Remaining Hour"] = tenant_merged["Total Allowable Limit (Hr)"] - tenant_merged["Elapsed Time (Decimal)"]
-
-        # Display the tenant-specific table with the new columns
-        st.subheader(f"Tenant: {tenant} - Final Merged Table")
-        st.dataframe(
-            tenant_merged[
-                [
-                    "Cluster",
-                    "Zone",
-                    "Total Site Count",
-                    "Total Affected Site",
-                    "Elapsed Time (Decimal)",
-                    "Grid Availability",
-                    "Total Reedemed Hour",
-                    "Total Allowable Limit (Hr)",
-                    "Remaining Hour",
-                ]
-            ]
-        )
-
-    # Add Total Allowable Limit (Hr) and Remaining Hour to the overall table
-    overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"].apply(
-        lambda x: (x * 24 * 30) - ((x * 24 * 30) * 0.9985)
-    )
-    overall_final_merged["Remaining Hour"] = overall_final_merged["Total Allowable Limit (Hr)"] - overall_final_merged[
-        "Elapsed Time (Decimal)"
-    ]
-
-    # Display the overall table with the new columns
-    st.subheader("Overall Merged Table")
-    st.dataframe(
-        overall_final_merged[
-            [
-                "Cluster",
-                "Zone",
-                "Total Site Count",
-                "Total Affected Site",
-                "Elapsed Time (Decimal)",
-                "Grid Availability",
-                "Total Reedemed Hour",
-                "Total Allowable Limit (Hr)",
-                "Remaining Hour",
-            ]
-        ]
-    )
-except Exception as e:
-    st.error(f"Error adding new columns: {e}")
-
 # Final Message
 if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
     st.sidebar.success("All files processed and merged successfully!")
