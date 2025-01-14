@@ -223,11 +223,12 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
         st.error(f"Error during merging: {e}")
 
 # After the tenant-specific and overall merged data have been created, process and add the new columns
+# After the tenant-specific and overall merged data have been created, process and add the new columns
 try:
     for tenant, tenant_merged in tenant_merged_data.items():
-        # Convert all relevant columns to float and handle NaN by replacing with 0
-        for col in ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]:
-            tenant_merged[col] = tenant_merged[col].fillna(0).astype(float)
+        # Replace None/NaN with 0 and convert all numeric columns to float
+        numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
+        tenant_merged[numeric_columns] = tenant_merged[numeric_columns].fillna(0).astype(float)
 
         # Calculate Total Allowable Limit (Hr) and Remaining Hour
         tenant_merged["Total Allowable Limit (Hr)"] = tenant_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
@@ -251,10 +252,11 @@ try:
             ]
         )
 
-    # Add Total Allowable Limit (Hr) and Remaining Hour to the overall table
-    for col in ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]:
-        overall_final_merged[col] = overall_final_merged[col].fillna(0).astype(float)
+    # Replace None/NaN with 0 and convert all numeric columns to float in the overall table
+    numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
+    overall_final_merged[numeric_columns] = overall_final_merged[numeric_columns].fillna(0).astype(float)
 
+    # Add Total Allowable Limit (Hr) and Remaining Hour to the overall table
     overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
     overall_final_merged["Remaining Hour"] = overall_final_merged["Total Allowable Limit (Hr)"] - overall_final_merged["Elapsed Time (Decimal)"]
 
@@ -277,6 +279,7 @@ try:
     )
 except Exception as e:
     st.error(f"Error during processing: {e}")
+
 
 
 # Final Message
