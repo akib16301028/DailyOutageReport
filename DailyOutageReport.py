@@ -186,13 +186,13 @@ if total_elapse_file:
                 .reset_index()
             )
             # Convert total elapsed time to decimal hours
-            grouped_elapsed["Elapsed Time (Decimal)"] = grouped_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+            grouped_elapsed["Total Reedemed Hour"] = grouped_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
 
             tenant_total_elapsed[tenant] = grouped_elapsed
 
             # Display tenant-wise table
             st.subheader(f"Tenant: {tenant} - Total Elapsed Time Till Date")
-            st.dataframe(grouped_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]])
+            st.dataframe(grouped_elapsed[["Cluster", "Zone", "Total Reedemed Hour"]])
 
         # Overall table for all tenants
         overall_elapsed = (
@@ -200,10 +200,10 @@ if total_elapse_file:
             .sum()
             .reset_index()
         )
-        overall_elapsed["Elapsed Time (Decimal)"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+        overall_elapsed["Total Reedemed Hour"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
 
         st.subheader("Overall Total Elapsed Time Till Date for All Tenants")
-        st.dataframe(overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]])
+        st.dataframe(overall_elapsed[["Cluster", "Zone", "Total Reedemed Hour"]])
 
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
