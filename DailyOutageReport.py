@@ -156,7 +156,10 @@ if rms_site_file and alarm_history_file and total_elapse_file:
             on=["Cluster", "Zone"],
             how="left"
         )
-        overall_final_combined.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
+        # Rename to Total Redeemed Hour
+        overall_final_combined["Total Redeemed Hour"] = overall_final_combined["Elapsed Time (Decimal)"]
+        overall_final_combined.drop(columns=["Elapsed Time (Decimal)"], inplace=True)
+
         st.subheader("Overall Merged Table with Total Redeemed Hour")
         st.dataframe(overall_final_combined[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Total Redeemed Hour"]])
 
@@ -169,12 +172,16 @@ if rms_site_file and alarm_history_file and total_elapse_file:
                 on=["Cluster", "Zone"],
                 how="left"
             )
-            merged_tenant_final.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
+            # Rename to Total Redeemed Hour
+            merged_tenant_final["Total Redeemed Hour"] = merged_tenant_final["Elapsed Time (Decimal)"]
+            merged_tenant_final.drop(columns=["Elapsed Time (Decimal)"], inplace=True)
+
             st.subheader(f"Tenant: {tenant} - Final Merged Table with Total Redeemed Hour")
             st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Total Redeemed Hour"]])
 
     except Exception as e:
         st.error(f"Error during final merging: {e}")
+
 
 # Final Message
 if rms_site_file and alarm_history_file and total_elapse_file:
