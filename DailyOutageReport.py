@@ -195,14 +195,15 @@ if total_elapse_file:
         )
 
         # Calculate Total Allowable Limit (Hr) and Remaining Hour for overall table
-        overall_final_merged["Total Allowable Limit (Hr)"] = (
-            (overall_final_merged["Total Site Count"] * 24 * 30) -
-            (overall_final_merged["Total Site Count"] * 24 * 30 * 0.9985)
-        )
-        overall_final_merged["Remaining Hour"] = (
-            overall_final_merged["Total Allowable Limit (Hr)"] - 
-            overall_final_merged["Elapsed Time (Decimal)_Elapsed"]
-        )
+overall_final_merged["Total Allowable Limit (Hr)"] = (
+    (overall_final_merged["Total Site Count"].astype(float) * 24 * 30) -
+    (overall_final_merged["Total Site Count"].astype(float) * 24 * 30 * 0.9985)
+)
+overall_final_merged["Remaining Hour"] = (
+    overall_final_merged["Total Allowable Limit (Hr)"] - 
+    overall_final_merged["Elapsed Time (Decimal)_Elapsed"].astype(float)
+)
+
 
         st.subheader("Overall Final Merged Table with Elapsed Time and Calculated Columns")
         st.dataframe(overall_final_merged)
