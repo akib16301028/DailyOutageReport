@@ -175,7 +175,7 @@ if total_elapse_file:
             # Replace None values with 0 for Remaining Hour
             final_merged_tenant["Remaining Hour"] = (
                 final_merged_tenant["Total Allowable Limit (Hr)"] - 
-                final_merged_tenant["Elapsed Time (Decimal)_Elapsed"].fillna(Decimal(0.0))
+                final_merged_tenant["Elapsed Time (Decimal)_Elapsed"].fillna(Decimal(0.0)).astype(float)
             )
 
             # Replace None values in the Total Allowable Limit with 0 as well
@@ -201,18 +201,14 @@ if total_elapse_file:
 
         # Calculate Total Allowable Limit (Hr) and Remaining Hour for overall table
         overall_final_merged["Total Allowable Limit (Hr)"] = (
-            (overall_final_merged["Total Site Count"].astype(float) * 24 * 30) -
+            (overall_final_merged["Total Site Count"].astype(float) * 24 * 30) - 
             (overall_final_merged["Total Site Count"].astype(float) * 24 * 30 * 0.9985)
         )
 
-        # Replace None values with 0 for Remaining Hour
         overall_final_merged["Remaining Hour"] = (
             overall_final_merged["Total Allowable Limit (Hr)"] - 
-            overall_final_merged["Elapsed Time (Decimal)_Elapsed"].fillna(Decimal(0.0))
+            overall_final_merged["Elapsed Time (Decimal)_Elapsed"].fillna(Decimal(0.0)).astype(float)
         )
-
-        # Replace None values in the Total Allowable Limit with 0 as well
-        overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Allowable Limit (Hr)"].fillna(Decimal(0.0))
 
         st.subheader("Overall Final Merged Table with Elapsed Time and Calculated Columns")
         st.dataframe(overall_final_merged)
