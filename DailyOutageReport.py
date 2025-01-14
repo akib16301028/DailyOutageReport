@@ -223,3 +223,4 @@ if total_elapse_file:
 # Final Message
 if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
     st.sidebar.success("All files processed and merged successfully!")
+ 
