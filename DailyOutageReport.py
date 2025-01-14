@@ -2,12 +2,6 @@ import streamlit as st
 import pandas as pd
 from decimal import Decimal, ROUND_HALF_UP
 
-# Set the title of the application
-st.title("Tenant-Wise Data Processing Application")
-
-# Sidebar for uploading files
-st.sidebar.header("Upload Required Excel Files")
-
 # Function to standardize tenant names
 def standardize_tenant(tenant_name):
     tenant_mapping = {
@@ -147,15 +141,19 @@ if rms_site_file and alarm_history_file and grid_data_file:
             # Replace None or NaN values in "Total Reedemed Hour" with 0
             merged_tenant_final["Total Reedemed Hour"] = pd.to_numeric(merged_tenant_final["Total Reedemed Hour"], errors="coerce").fillna(0)
 
-            # Calculate Total Allowable Limit and Remaining Hour
-            merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"].apply(calculate_total_allowable_limit)
-            merged_tenant_final["Remaining Hour"] = merged_tenant_final.apply(
-                lambda row: calculate_remaining_hour(row["Total Allowable Limit (Hr)"], row["Total Reedemed Hour"]), axis=1)
+            # Ensure that "Total Reedemed Hour" column is present and merged correctly
+            if "Total Reedemed Hour" in merged_tenant_final.columns:
+                st.subheader(f"Tenant: {tenant} - Final Merged Table")
+                merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"].apply(calculate_total_allowable_limit)
+                merged_tenant_final["Remaining Hour"] = merged_tenant_final.apply(
+                    lambda row: calculate_remaining_hour(row["Total Allowable Limit (Hr)"], row["Total Reedemed Hour"]), axis=1
+                )
 
-            st.subheader(f"Tenant: {tenant} - Final Merged Table")
-            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
-                                             "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour", 
-                                             "Total Allowable Limit (Hr)", "Remaining Hour"]])
+                st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
+                                                 "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour", 
+                                                 "Total Allowable Limit (Hr)", "Remaining Hour"]])
+            else:
+                st.warning(f"Total Reedemed Hour not found for Tenant: {tenant}")
 
         # Combine all tenants for the overall table
         combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
@@ -177,7 +175,8 @@ if rms_site_file and alarm_history_file and grid_data_file:
         # Calculate Total Allowable Limit and Remaining Hour for overall
         overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"].apply(calculate_total_allowable_limit)
         overall_final_merged["Remaining Hour"] = overall_final_merged.apply(
-            lambda row: calculate_remaining_hour(row["Total Allowable Limit (Hr)"], row["Total Reedemed Hour"]), axis=1)
+            lambda row: calculate_remaining_hour(row["Total Allowable Limit (Hr)"], row["Total Reedemed Hour"]), axis=1
+        )
 
         st.subheader("Overall Merged Table")
         st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
