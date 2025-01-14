@@ -158,22 +158,26 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             grid_data = tenant_zone_grid.get(tenant, pd.DataFrame())
             total_elapsed = tenant_total_elapsed.get(tenant, pd.DataFrame())
 
+            # Merge tenant-specific tables
             merged_tenant_final = pd.merge(
                 tenant_merged,
                 grid_data[["Cluster", "Zone", "AC Availability (%)"]],
                 on=["Cluster", "Zone"],
                 how="left"
             )
-            merged_tenant_final = pd.merge(
-                merged_tenant_final,
-                total_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
-                on=["Cluster", "Zone"],
-                how="left"
-            )
-
-            merged_tenant_final.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
+            if "Elapsed Time (Decimal)" in total_elapsed.columns:
+                merged_tenant_final = pd.merge(
+                    merged_tenant_final,
+                    total_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
+                    on=["Cluster", "Zone"],
+                    how="left"
+                )
+                merged_tenant_final.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
+            else:
+                merged_tenant_final["Total Redeemed Hour"] = 0  # Default value if column missing
 
             merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
+
             st.subheader(f"Tenant: {tenant} - Final Merged Table with Total Redeemed Hour")
             st.dataframe(
                 merged_tenant_final[
@@ -181,6 +185,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                 ]
             )
 
+        # Handle overall merging
         combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
             "AC Availability (%)": "mean",
         }).reset_index()
@@ -191,14 +196,17 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             on=["Cluster", "Zone"],
             how="left"
         )
-        overall_final_merged = pd.merge(
-            overall_final_merged,
-            overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
-            on=["Cluster", "Zone"],
-            how="left"
-        )
+        if "Elapsed Time (Decimal)" in overall_elapsed.columns:
+            overall_final_merged = pd.merge(
+                overall_final_merged,
+                overall_elapsed[["Cluster", "Zone", "Elapsed Time (Decimal)"]],
+                on=["Cluster", "Zone"],
+                how="left"
+            )
+            overall_final_merged.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
+        else:
+            overall_final_merged["Total Redeemed Hour"] = 0  # Default value if column missing
 
-        overall_final_merged.rename(columns={"Elapsed Time (Decimal)": "Total Redeemed Hour"}, inplace=True)
         overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
 
         st.subheader("Overall Merged Table with Total Redeemed Hour")
@@ -210,6 +218,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
 
     except Exception as e:
         st.error(f"Error during merging: {e}")
+
 
 # Final Message
 if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
