@@ -133,9 +133,16 @@ if rms_site_file and alarm_history_file and grid_data_file:
                 how="left"
             )
 
-            merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
+            # Rename the duplicate columns with x and y suffixes
+            merged_tenant_final.rename(columns={
+                "Elapsed Time (Decimal)": "Elapsed Time (Decimal)_x",
+                "AC Availability (%)": "Grid Availability",
+                "Elapsed Time (Decimal)_x": "Elapsed Time (Decimal)_y"
+            }, inplace=True)
+
             st.subheader(f"Tenant: {tenant} - Final Merged Table")
-            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Elapsed Time (Decimal)"]])
+            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
+                                              "Elapsed Time (Decimal)_x", "Grid Availability", "Elapsed Time (Decimal)_y"]])
 
         combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
             "AC Availability (%)": "mean",
@@ -149,8 +156,17 @@ if rms_site_file and alarm_history_file and grid_data_file:
         )
 
         overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
+
+        # Rename the duplicate columns for overall data as well
+        overall_final_merged.rename(columns={
+            "Elapsed Time (Decimal)": "Elapsed Time (Decimal)_x",
+            "AC Availability (%)": "Grid Availability",
+            "Elapsed Time (Decimal)_x": "Elapsed Time (Decimal)_y"
+        }, inplace=True)
+
         st.subheader("Overall Merged Table")
-        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Elapsed Time (Decimal)"]])
+        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", 
+                                           "Elapsed Time (Decimal)_x", "Grid Availability", "Elapsed Time (Decimal)_y"]])
 
     except Exception as e:
         st.error(f"Error during merging: {e}")
@@ -207,7 +223,3 @@ if total_elapse_file:
 
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
-
-# Final Message
-if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
-    st.sidebar.success("All files processed and merged successfully!")
