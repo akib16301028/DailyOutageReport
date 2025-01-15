@@ -240,28 +240,5 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             ]
         )
 
-# Step 5: Process MTA Site List from the repository
-try:
-    # Path to the MTA Site List file in your repository
-    mta_file_path = "MTA Site List.xlsx"  # Update this path if the file is in a specific folder
-
-    # Read the MTA Site List
-    df_mta_site = pd.read_excel(mta_file_path)
-
-    # Group data by Cluster and Zone, and calculate Total Site Count
-    grouped_mta = (
-        df_mta_site.groupby(["Cluster", "Zone"])["Site Alias"]
-        .count()
-        .reset_index()
-        .rename(columns={"Site Alias": "Total Site Count"})
-    )
-
-    st.subheader("MTA Site Data - Cluster and Zone Grouped Table")
-    st.dataframe(grouped_mta)
-
-    # Save grouped data for further processing in the next steps
-    mta_grouped_data = grouped_mta
-
-except Exception as e:
-    st.error(f"Error processing MTA Site List: {e}")
-
+    except Exception as e:
+        st.error(f"Error merging data: {e}")
