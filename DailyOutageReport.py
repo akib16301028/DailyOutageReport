@@ -191,9 +191,6 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             # Step 2: Calculate Total Allowable Limit (Hr)
             merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
 
-            # Step 3: Calculate Remaining Hour
-            merged_tenant_final["Remaining Hour"] = merged_tenant_final["Total Allowable Limit (Hr)"] - merged_tenant_final["Total Reedemed Hour"]
-
             # Display the tenant-specific table with the new column
             st.subheader(f"Tenant: {tenant} - Final Merged Table")
             st.dataframe(
@@ -206,8 +203,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                         "Elapsed Time (Decimal)",
                         "Grid Availability",
                         "Total Reedemed Hour",
-                        "Total Allowable Limit (Hr)",
-                        "Remaining Hour"
+                        "Total Allowable Limit (Hr)"
                     ]
                 ]
             )
@@ -244,9 +240,6 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
         # Calculate Total Allowable Limit (Hr) for overall data
         overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
 
-        # Calculate Remaining Hour for overall data
-        overall_final_merged["Remaining Hour"] = overall_final_merged["Total Allowable Limit (Hr)"] - overall_final_merged["Total Reedemed Hour"]
-
         st.subheader("Overall Final Merged Table")
         st.dataframe(
             overall_final_merged[
@@ -258,8 +251,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                     "Elapsed Time (Decimal)",
                     "Grid Availability",
                     "Total Reedemed Hour",
-                    "Total Allowable Limit (Hr)",
-                    "Remaining Hour"
+                    "Total Allowable Limit (Hr)"
                 ]
             ]
         )
