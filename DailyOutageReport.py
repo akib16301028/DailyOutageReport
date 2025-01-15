@@ -224,30 +224,24 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
 
 # After the tenant-specific and overall merged data have been created, process and add the new columns
 try:
+    # Iterate through tenant-specific data
     for tenant, tenant_merged in tenant_merged_data.items():
-        # Display the initial table for debugging
         st.write(f"Initial table for Tenant: {tenant}")
         st.dataframe(tenant_merged)
 
-        # Replace None/NaN with 0 and convert all numeric columns to float
+        # Step 1: Replace None/NaN with 0 and convert all numeric columns to float
         st.write("Step 1: Replacing None/NaN with 0 and converting to float")
         numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
         tenant_merged[numeric_columns] = tenant_merged[numeric_columns].fillna(0).astype(float)
         st.dataframe(tenant_merged)
 
-        # Step-by-step calculation of Total Allowable Limit (Hr)
+        # Step 2: Calculate Total Allowable Limit (Hr)
         st.write("Step 2: Calculating Total Allowable Limit (Hr)")
         tenant_merged["Total Allowable Limit (Hr)"] = tenant_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
         st.write("Calculated 'Total Allowable Limit (Hr)':")
         st.dataframe(tenant_merged[["Cluster", "Zone", "Total Allowable Limit (Hr)"]])
 
-        # Step-by-step calculation of Remaining Hour
-        st.write("Step 3: Calculating Remaining Hour")
-        tenant_merged["Remaining Hour"] = tenant_merged["Total Allowable Limit (Hr)"] - tenant_merged["Elapsed Time (Decimal)"]
-        st.write("Calculated 'Remaining Hour':")
-        st.dataframe(tenant_merged[["Cluster", "Zone", "Remaining Hour"]])
-
-        # Display the tenant-specific table with the new columns
+        # Display the tenant-specific table with the new column
         st.subheader(f"Tenant: {tenant} - Final Merged Table")
         st.dataframe(
             tenant_merged[
@@ -259,32 +253,25 @@ try:
                     "Elapsed Time (Decimal)",
                     "Grid Availability",
                     "Total Reedemed Hour",
-                    "Total Allowable Limit (Hr)",
-                    "Remaining Hour",
+                    "Total Allowable Limit (Hr)"
                 ]
             ]
         )
 
-    # Debugging for the overall table
+    # Debugging for the overall merged table
     st.write("Processing the overall merged table")
     st.write("Step 1: Replacing None/NaN with 0 and converting to float")
     numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
     overall_final_merged[numeric_columns] = overall_final_merged[numeric_columns].fillna(0).astype(float)
     st.dataframe(overall_final_merged)
 
-    # Step-by-step calculation of Total Allowable Limit (Hr) for overall table
+    # Step 2: Calculate Total Allowable Limit (Hr) for overall table
     st.write("Step 2: Calculating Total Allowable Limit (Hr) for overall table")
     overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
     st.write("Calculated 'Total Allowable Limit (Hr)':")
     st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Allowable Limit (Hr)"]])
 
-    # Step-by-step calculation of Remaining Hour for overall table
-    st.write("Step 3: Calculating Remaining Hour for overall table")
-    overall_final_merged["Remaining Hour"] = overall_final_merged["Total Allowable Limit (Hr)"] - overall_final_merged["Elapsed Time (Decimal)"]
-    st.write("Calculated 'Remaining Hour':")
-    st.dataframe(overall_final_merged[["Cluster", "Zone", "Remaining Hour"]])
-
-    # Display the overall table with the new columns
+    # Display the overall table with the new column
     st.subheader("Overall Merged Table")
     st.dataframe(
         overall_final_merged[
@@ -296,16 +283,13 @@ try:
                 "Elapsed Time (Decimal)",
                 "Grid Availability",
                 "Total Reedemed Hour",
-                "Total Allowable Limit (Hr)",
-                "Remaining Hour",
+                "Total Allowable Limit (Hr)"
             ]
         ]
     )
+
 except Exception as e:
     st.error(f"Error during processing: {e}")
-
-
-
 
 # Final Message
 if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
