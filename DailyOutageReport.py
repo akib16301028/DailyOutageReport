@@ -264,6 +264,3 @@ try:
 
 except Exception as e:
     st.error(f"Error processing MTA Site List: {e}")
-
-    except Exception as e:
-        st.error(f"Error merging data: {e}")
