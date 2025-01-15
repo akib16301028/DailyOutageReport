@@ -184,14 +184,17 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                 how="left"
             )
 
-            # Step 1: Replace None/NaN with 0 and convert all numeric columns to float
+            # Replace None/NaN with 0 and convert all numeric columns to float
             numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
             merged_tenant_final[numeric_columns] = merged_tenant_final[numeric_columns].fillna(0).astype(float)
 
-            # Step 2: Calculate Total Allowable Limit (Hr)
+            # Calculate Total Allowable Limit (Hr)
             merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
 
-            # Display the tenant-specific table with the new column
+            # Calculate Remaining Hour
+            merged_tenant_final["Remaining Hour"] = merged_tenant_final["Total Allowable Limit (Hr)"] - merged_tenant_final["Total Reedemed Hour"]
+
+            # Display the tenant-specific table
             st.subheader(f"Tenant: {tenant} - Final Merged Table")
             st.dataframe(
                 merged_tenant_final[
@@ -203,7 +206,8 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                         "Elapsed Time (Decimal)",
                         "Grid Availability",
                         "Total Reedemed Hour",
-                        "Total Allowable Limit (Hr)"
+                        "Total Allowable Limit (Hr)",
+                        "Remaining Hour"
                     ]
                 ]
             )
@@ -237,8 +241,11 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             how="left"
         )
 
-        # Calculate Total Allowable Limit (Hr) for overall data
+        # Calculate Total Allowable Limit (Hr)
         overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+
+        # Calculate Remaining Hour
+        overall_final_merged["Remaining Hour"] = overall_final_merged["Total Allowable Limit (Hr)"] - overall_final_merged["Total Reedemed Hour"]
 
         st.subheader("Overall Final Merged Table")
         st.dataframe(
@@ -251,7 +258,8 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                     "Elapsed Time (Decimal)",
                     "Grid Availability",
                     "Total Reedemed Hour",
-                    "Total Allowable Limit (Hr)"
+                    "Total Allowable Limit (Hr)",
+                    "Remaining Hour"
                 ]
             ]
         )
