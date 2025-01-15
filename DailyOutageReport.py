@@ -240,5 +240,39 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             ]
         )
 
+# Add new section for MTA Site List
+def process_mta_site_list(mta_file):
+    try:
+        # Step 1: Read the MTA Site List file
+        df_mta_site = pd.read_excel(mta_file)
+
+        # Step 2: Group by Cluster and Zone
+        grouped_mta = (
+            df_mta_site.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
+        )
+
+        # Step 3: Display the grouped table
+        st.subheader("MTA Site List - Cluster and Zone Grouping")
+        st.dataframe(grouped_mta)
+
+        return grouped_mta
+
+    except Exception as e:
+        st.error(f"Error processing MTA Site List: {e}")
+        return None
+
+# Main Streamlit Application
+st.title("Tenant-Wise Data Processing Application")
+
+# Upload MTA Site List file
+mta_file = st.sidebar.file_uploader("MTA Site List", type=["xlsx", "xls"])
+if mta_file:
+    st.success("MTA Site List uploaded successfully!")
+    mta_grouped = process_mta_site_list(mta_file)
+
+    if mta_grouped is not None:
+        st.write("Processed MTA Site List successfully.")
+        # Placeholder for next steps based on your requirements
+
     except Exception as e:
         st.error(f"Error merging data: {e}")
