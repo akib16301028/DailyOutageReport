@@ -224,9 +224,9 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
 
 # After the tenant-specific and overall merged data have been created, process and add the new columns
 try:
-    # Iterate through tenant-specific data
+    # Iterate through tenant-specific merged data
     for tenant, tenant_merged in tenant_merged_data.items():
-        st.write(f"Initial table for Tenant: {tenant}")
+        st.write(f"Final Merged table for Tenant: {tenant}")
         st.dataframe(tenant_merged)
 
         # Step 1: Replace None/NaN with 0 and convert all numeric columns to float
@@ -241,7 +241,7 @@ try:
         st.write("Calculated 'Total Allowable Limit (Hr)':")
         st.dataframe(tenant_merged[["Cluster", "Zone", "Total Allowable Limit (Hr)"]])
 
-        # Display the tenant-specific table with the new column
+        # Display the tenant-specific final merged table with the new column
         st.subheader(f"Tenant: {tenant} - Final Merged Table")
         st.dataframe(
             tenant_merged[
@@ -271,8 +271,8 @@ try:
     st.write("Calculated 'Total Allowable Limit (Hr)':")
     st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Allowable Limit (Hr)"]])
 
-    # Display the overall table with the new column
-    st.subheader("Overall Merged Table")
+    # Display the overall final merged table with the new column
+    st.subheader("Overall Final Merged Table")
     st.dataframe(
         overall_final_merged[
             [
@@ -290,6 +290,7 @@ try:
 
 except Exception as e:
     st.error(f"Error during processing: {e}")
+
 
 # Final Message
 if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
