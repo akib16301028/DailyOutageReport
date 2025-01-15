@@ -164,7 +164,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
     try:
         for tenant, tenant_merged in tenant_merged_data.items():
             grid_data = tenant_zone_grid.get(tenant, pd.DataFrame())
-            
+
             # Merge tenant-specific data with Grid Data
             merged_tenant_final = pd.merge(
                 tenant_merged,
@@ -184,8 +184,29 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                 how="left"
             )
 
+            # Step 1: Replace None/NaN with 0 and convert all numeric columns to float
+            numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
+            merged_tenant_final[numeric_columns] = merged_tenant_final[numeric_columns].fillna(0).astype(float)
+
+            # Step 2: Calculate Total Allowable Limit (Hr)
+            merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+
+            # Display the tenant-specific table with the new column
             st.subheader(f"Tenant: {tenant} - Final Merged Table")
-            st.dataframe(merged_tenant_final[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour"]])
+            st.dataframe(
+                merged_tenant_final[
+                    [
+                        "Cluster",
+                        "Zone",
+                        "Total Site Count",
+                        "Total Affected Site",
+                        "Elapsed Time (Decimal)",
+                        "Grid Availability",
+                        "Total Reedemed Hour",
+                        "Total Allowable Limit (Hr)"
+                    ]
+                ]
+            )
 
         # Combine all tenants for the overall table
         combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
@@ -216,35 +237,12 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             how="left"
         )
 
-        st.subheader("Overall Merged Table")
-        st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Grid Availability", "Total Reedemed Hour"]])
+        # Calculate Total Allowable Limit (Hr) for overall data
+        overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
 
-    except Exception as e:
-        st.error(f"Error during merging: {e}")
-
-# After the tenant-specific and overall merged data have been created, process and add the new columns
-try:
-    # Iterate through tenant-specific merged data
-    for tenant, tenant_merged in tenant_merged_data.items():
-        st.write(f"Final Merged table for Tenant: {tenant}")
-        st.dataframe(tenant_merged)
-
-        # Step 1: Replace None/NaN with 0 and convert all numeric columns to float
-        st.write("Step 1: Replacing None/NaN with 0 and converting to float")
-        numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
-        tenant_merged[numeric_columns] = tenant_merged[numeric_columns].fillna(0).astype(float)
-        st.dataframe(tenant_merged)
-
-        # Step 2: Calculate Total Allowable Limit (Hr)
-        st.write("Step 2: Calculating Total Allowable Limit (Hr)")
-        tenant_merged["Total Allowable Limit (Hr)"] = tenant_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
-        st.write("Calculated 'Total Allowable Limit (Hr)':")
-        st.dataframe(tenant_merged[["Cluster", "Zone", "Total Allowable Limit (Hr)"]])
-
-        # Display the tenant-specific final merged table with the new column
-        st.subheader(f"Tenant: {tenant} - Final Merged Table")
+        st.subheader("Overall Final Merged Table")
         st.dataframe(
-            tenant_merged[
+            overall_final_merged[
                 [
                     "Cluster",
                     "Zone",
@@ -258,40 +256,5 @@ try:
             ]
         )
 
-    # Debugging for the overall merged table
-    st.write("Processing the overall merged table")
-    st.write("Step 1: Replacing None/NaN with 0 and converting to float")
-    numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
-    overall_final_merged[numeric_columns] = overall_final_merged[numeric_columns].fillna(0).astype(float)
-    st.dataframe(overall_final_merged)
-
-    # Step 2: Calculate Total Allowable Limit (Hr) for overall table
-    st.write("Step 2: Calculating Total Allowable Limit (Hr) for overall table")
-    overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
-    st.write("Calculated 'Total Allowable Limit (Hr)':")
-    st.dataframe(overall_final_merged[["Cluster", "Zone", "Total Allowable Limit (Hr)"]])
-
-    # Display the overall final merged table with the new column
-    st.subheader("Overall Final Merged Table")
-    st.dataframe(
-        overall_final_merged[
-            [
-                "Cluster",
-                "Zone",
-                "Total Site Count",
-                "Total Affected Site",
-                "Elapsed Time (Decimal)",
-                "Grid Availability",
-                "Total Reedemed Hour",
-                "Total Allowable Limit (Hr)"
-            ]
-        ]
-    )
-
-except Exception as e:
-    st.error(f"Error during processing: {e}")
-
-
-# Final Message
-if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
-    st.sidebar.success("All files processed and merged successfully!")
+    except Exception as e:
+        st.error(f"Error merging data: {e}")
