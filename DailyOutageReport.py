@@ -186,9 +186,9 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                         "Total Affected Site",
                         "Elapsed Time (Decimal)",
                         "Grid Availability",
-                        "Total Reedemed Hour",
                         "Total Allowable Limit (Hr)",
-                        "Remaining Hour"
+                        "Remaining Hour",
+                        "Total Reedemed Hour",                        
                     ]
                 ]
             )
@@ -227,15 +227,15 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
         st.dataframe(
             overall_final_merged[
                 [
-                    "Cluster",
-                    "Zone",
-                    "Total Site Count",
-                    "Total Affected Site",
-                    "Elapsed Time (Decimal)",
-                    "Grid Availability",
-                    "Total Reedemed Hour",
-                    "Total Allowable Limit (Hr)",
-                    "Remaining Hour"
+                        "Cluster",
+                        "Zone",
+                        "Total Site Count",
+                        "Total Affected Site",
+                        "Elapsed Time (Decimal)",
+                        "Grid Availability",
+                        "Total Allowable Limit (Hr)",
+                        "Remaining Hour",
+                        "Total Reedemed Hour",  
                 ]
             ]
         )
