@@ -202,14 +202,15 @@ if show_mta_site_list:
         mta_final = pd.merge(mta_final, grid_availability, on=["Cluster", "Zone"], how="left")
         mta_final = pd.merge(mta_final, total_redeemed[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
 
-        # Fill missing values and calculate Remaining Hour
+                # Fill missing values and calculate Remaining Hour
         mta_final["Total Site Count"] = mta_final["Total Site Count"].fillna(0).astype(int)
         mta_final["Total Affected Site"] = mta_final["Total Affected Site"].fillna(0).astype(int)
         mta_final["Elapsed Time (Decimal)"] = mta_final["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
         mta_final["Total Reedemed Hour"] = mta_final["Total Reedemed Hour"].fillna(Decimal(0.0))
-
+        
         mta_final["Total Allowable Limit (Hr)"] = mta_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
-        mta_final["Remaining Hour"] = mta_final["Total Allowable Limit (Hr)")- mta_final["Total Reedemed Hour"]
+        mta_final["Remaining Hour"] = mta_final["Total Allowable Limit (Hr)"] - mta_final["Total Reedemed Hour"]
+
 
         # Display MTA Site Data
         st.subheader("MTA Site Final Table")
