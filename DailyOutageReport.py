@@ -37,6 +37,17 @@ def convert_to_decimal_hours(elapsed_time):
         return Decimal(decimal_hours).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
     return Decimal(0.0)
 
+# Checkbox for showing MTA Site List
+show_mta_checkbox = st.sidebar.checkbox("Show MTA Site List")
+if show_mta_checkbox:
+    try:
+        mta_site_list_file = "MTA Site List.xlsx"  # Path to the file
+        df_mta_site_list = pd.read_excel(mta_site_list_file)
+        st.subheader("MTA Site List")
+        st.dataframe(df_mta_site_list)
+    except Exception as e:
+        st.error(f"Error loading MTA Site List: {e}")
+
 # Step 1: Upload RMS Site List
 rms_site_file = st.sidebar.file_uploader("1. RMS Site List", type=["xlsx", "xls"])
 if rms_site_file:
@@ -147,7 +158,100 @@ if total_elapse_file:
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
 
-# Step 5: Display MTA Site Data if selected
+# Merge Overall and Tenant-Specific Data
+if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
+    try:
+        for tenant, tenant_merged in tenant_merged_data.items():
+            grid_data = tenant_zone_grid.get(tenant, pd.DataFrame())
+
+            merged_tenant_final = pd.merge(
+                tenant_merged,
+                grid_data[["Cluster", "Zone", "AC Availability (%)"]],
+                on=["Cluster", "Zone"],
+                how="left"
+            )
+
+            merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
+
+            total_elapsed_data = tenant_total_elapsed.get(tenant, pd.DataFrame())
+            merged_tenant_final = pd.merge(
+                merged_tenant_final,
+                total_elapsed_data[["Cluster", "Zone", "Total Reedemed Hour"]],
+                on=["Cluster", "Zone"],
+                how="left"
+            )
+
+            numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
+            merged_tenant_final[numeric_columns] = merged_tenant_final[numeric_columns].fillna(0).astype(float)
+
+            merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+            merged_tenant_final["Remaining Hour"] = merged_tenant_final["Total Allowable Limit (Hr)"] - merged_tenant_final["Total Reedemed Hour"]
+
+            st.subheader(f"Tenant: {tenant} - Final Merged Table")
+            st.dataframe(
+                merged_tenant_final[
+                    [
+                        "Cluster",
+                        "Zone",
+                        "Total Site Count",
+                        "Total Affected Site",
+                        "Elapsed Time (Decimal)",
+                        "Grid Availability",
+                        "Total Reedemed Hour",
+                        "Total Allowable Limit (Hr)",
+                        "Remaining Hour"
+                    ]
+                ]
+            )
+
+        combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
+            "AC Availability (%)": "mean",
+        }).reset_index()
+
+        overall_final_merged = pd.merge(
+            merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index(),
+            combined_grid_data,
+            on=["Cluster", "Zone"],
+            how="left"
+        )
+
+        overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
+
+        overall_elapsed = (
+            df_total_elapse.groupby(["Cluster", "Zone"])["Elapsed Time"]
+            .sum()
+            .reset_index()
+        )
+        overall_elapsed["Total Reedemed Hour"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+
+        overall_final_merged = pd.merge(
+            overall_final_merged,
+            overall_elapsed[["Cluster", "Zone", "Total Reedemed Hour"]],
+            on=["Cluster", "Zone"],
+            how="left"
+        )
+
+        overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+        overall_final_merged["Remaining Hour"] = overall_final_merged["Total Allowable Limit (Hr)"] - overall_final_merged["Total Reedemed Hour"].astype(float)
+
+        st.subheader("Overall Final Merged Table")
+        st.dataframe(
+            overall_final_merged[
+                [
+                    "Cluster",
+                    "Zone",
+                    "Total Site Count",
+                    "Total Affected Site",
+                    "Elapsed Time (Decimal)",
+                    "Grid Availability",
+                    "Total Reedemed Hour",
+                    "Total Allowable Limit (Hr)",
+                    "Remaining Hour"
+                ]
+            ]
+        )
+
+    # Step 5: Display MTA Site Data if selected
 show_mta_site_list = st.sidebar.checkbox("Show MTA Site List")
 
 if show_mta_site_list:
@@ -202,15 +306,14 @@ if show_mta_site_list:
         mta_final = pd.merge(mta_final, grid_availability, on=["Cluster", "Zone"], how="left")
         mta_final = pd.merge(mta_final, total_redeemed[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
 
-                # Fill missing values and calculate Remaining Hour
+        # Fill missing values and calculate Remaining Hour
         mta_final["Total Site Count"] = mta_final["Total Site Count"].fillna(0).astype(int)
         mta_final["Total Affected Site"] = mta_final["Total Affected Site"].fillna(0).astype(int)
         mta_final["Elapsed Time (Decimal)"] = mta_final["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
         mta_final["Total Reedemed Hour"] = mta_final["Total Reedemed Hour"].fillna(Decimal(0.0))
-        
+
         mta_final["Total Allowable Limit (Hr)"] = mta_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
         mta_final["Remaining Hour"] = mta_final["Total Allowable Limit (Hr)"] - mta_final["Total Reedemed Hour"]
-
 
         # Display MTA Site Data
         st.subheader("MTA Site Final Table")
@@ -232,3 +335,7 @@ if show_mta_site_list:
 
     except Exception as e:
         st.error(f"Error processing MTA Site Data: {e}")
+
+
+    except Exception as e:
+        st.error(f"Error merging data: {e}")
