@@ -1,7 +1,7 @@
+import os
 import streamlit as st
 import pandas as pd
 from decimal import Decimal, ROUND_HALF_UP
-import requests
 
 # Set the title of the application
 st.title("Tenant-Wise Data Processing Application")
@@ -38,16 +38,15 @@ def convert_to_decimal_hours(elapsed_time):
         return Decimal(decimal_hours).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
     return Decimal(0.0)
 
-# Fetch MTA Site List from GitHub repository
-def fetch_mta_site_list():
-    mta_url = "https://raw.githubusercontent.com/yourusername/yourrepo/main/MTA%20Site%20List.xlsx"
-    mta_data = requests.get(mta_url)
-    if mta_data.status_code == 200:
-        with open("MTA_Site_List.xlsx", "wb") as f:
-            f.write(mta_data.content)
-        return pd.read_excel("MTA_Site_List.xlsx", skiprows=2)
+# Path to the MTA Site List in the deployed directory
+MTA_SITE_LIST_PATH = "./MTA_Site_List.xlsx"
+
+# Function to load MTA Site List from the local repository
+def load_mta_site_list():
+    if os.path.exists(MTA_SITE_LIST_PATH):
+        return pd.read_excel(MTA_SITE_LIST_PATH, skiprows=2)
     else:
-        st.error("Failed to fetch MTA Site List from GitHub")
+        st.error("MTA Site List file is missing in the deployment folder.")
         return pd.DataFrame()
 
 # Step 1: Upload RMS Site List
@@ -160,8 +159,8 @@ if total_elapse_file:
     except Exception as e:
         st.error(f"Error processing Total Elapse Till Date: {e}")
 
-# Fetch MTA Site List
-df_mta_site_list = fetch_mta_site_list()
+# Load MTA Site List
+df_mta_site_list = load_mta_site_list()
 
 if not df_mta_site_list.empty:
     try:
