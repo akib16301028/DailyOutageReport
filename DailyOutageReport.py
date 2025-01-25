@@ -239,80 +239,80 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                 ]
             ]
         )
+
         # Step to Fetch MTA Site List from Git Repository
-import requests
-from io import BytesIO
-
-# Fetch MTA Site List data automatically
-MTA_SITE_LIST_URL = "https://raw.githubusercontent.com/your-repo/MTA-Site-List/main/MTA_Site_List.xlsx"
-response = requests.get(MTA_SITE_LIST_URL)
-if response.status_code == 200:
-    mta_site_file = BytesIO(response.content)
-    st.success("MTA Site List fetched successfully!")
-    try:
-        # Read MTA Site List
-        df_mta_site = pd.read_excel(mta_site_file, skiprows=2)
-        df_mta_site = df_mta_site[~df_mta_site["Site Alias"].str.startswith("L", na=False)]
-        
-        # Group data by Cluster and Zone
-        mta_zone_data = df_mta_site.groupby(["Cluster", "Zone"])["Site Alias"].count().reset_index()
-        mta_zone_data.rename(columns={"Site Alias": "Total Site Count"}, inplace=True)
-
-        # Total Affected Site
-        df_alarm_history_mta = df_alarm_history[df_alarm_history["Site Alias"].isin(df_mta_site["Site Alias"])]
-        affected_site_count = df_alarm_history_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
-
-        # Elapsed Time (Decimal)
-        df_alarm_history_mta["Elapsed Time"] = pd.to_timedelta(df_alarm_history_mta["Elapsed Time"], errors="coerce")
-        elapsed_time_sum = df_alarm_history_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-        elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
-
-        # Grid Availability
-        grid_data_mta = df_grid_data[df_grid_data["Site Alias"].isin(df_mta_site["Site Alias"])]
-        avg_grid_availability = grid_data_mta.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
-
-        # Total Reedemed Hour
-        total_elapsed_mta = df_total_elapse[df_total_elapse["Site Alias"].isin(df_mta_site["Site Alias"])]
-        total_elapsed_sum = total_elapsed_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-        total_elapsed_sum["Total Reedemed Hour"] = total_elapsed_sum["Elapsed Time"].apply(convert_to_decimal_hours)
-
-        # Merge all data
-        mta_merged_data = pd.merge(mta_zone_data, affected_site_count, on=["Cluster", "Zone"], how="left")
-        mta_merged_data = pd.merge(mta_merged_data, elapsed_time_sum[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
-        mta_merged_data = pd.merge(mta_merged_data, avg_grid_availability, on=["Cluster", "Zone"], how="left")
-        mta_merged_data = pd.merge(mta_merged_data, total_elapsed_sum[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
-
-        # Fill missing values and calculate remaining columns
-        mta_merged_data["Total Affected Site"] = mta_merged_data["Total Affected Site"].fillna(0).astype(int)
-        mta_merged_data["Elapsed Time (Decimal)"] = mta_merged_data["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
-        mta_merged_data["Grid Availability"] = mta_merged_data["AC Availability (%)"].fillna(0.0)
-        mta_merged_data["Total Reedemed Hour"] = mta_merged_data["Total Reedemed Hour"].fillna(Decimal(0.0))
-
-        mta_merged_data["Total Allowable Limit (Hr)"] = mta_merged_data["Total Site Count"] * 24 * 30 * (1 - 0.9985)
-        mta_merged_data["Remaining Hour"] = mta_merged_data["Total Allowable Limit (Hr)"] - mta_merged_data["Total Reedemed Hour"]
-
-        # Display the MTA table
-        st.subheader("MTA Sites Table")
-        st.dataframe(
-            mta_merged_data[
-                [
-                    "Cluster",
-                    "Zone",
-                    "Total Site Count",
-                    "Total Affected Site",
-                    "Elapsed Time (Decimal)",
-                    "Grid Availability",
-                    "Total Reedemed Hour",
-                    "Total Allowable Limit (Hr)",
-                    "Remaining Hour"
+    import requests
+    from io import BytesIO
+    
+    # Fetch MTA Site List data automatically
+    MTA_SITE_LIST_URL = "https://raw.githubusercontent.com/your-repo/MTA-Site-List/main/MTA_Site_List.xlsx"
+    response = requests.get(MTA_SITE_LIST_URL)
+    if response.status_code == 200:
+        mta_site_file = BytesIO(response.content)
+        st.success("MTA Site List fetched successfully!")
+        try:
+            # Read MTA Site List
+            df_mta_site = pd.read_excel(mta_site_file, skiprows=2)
+            df_mta_site = df_mta_site[~df_mta_site["Site Alias"].str.startswith("L", na=False)]
+            
+            # Group data by Cluster and Zone
+            mta_zone_data = df_mta_site.groupby(["Cluster", "Zone"])["Site Alias"].count().reset_index()
+            mta_zone_data.rename(columns={"Site Alias": "Total Site Count"}, inplace=True)
+    
+            # Total Affected Site
+            df_alarm_history_mta = df_alarm_history[df_alarm_history["Site Alias"].isin(df_mta_site["Site Alias"])]
+            affected_site_count = df_alarm_history_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
+    
+            # Elapsed Time (Decimal)
+            df_alarm_history_mta["Elapsed Time"] = pd.to_timedelta(df_alarm_history_mta["Elapsed Time"], errors="coerce")
+            elapsed_time_sum = df_alarm_history_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
+            elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
+    
+            # Grid Availability
+            grid_data_mta = df_grid_data[df_grid_data["Site Alias"].isin(df_mta_site["Site Alias"])]
+            avg_grid_availability = grid_data_mta.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
+    
+            # Total Reedemed Hour
+            total_elapsed_mta = df_total_elapse[df_total_elapse["Site Alias"].isin(df_mta_site["Site Alias"])]
+            total_elapsed_sum = total_elapsed_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
+            total_elapsed_sum["Total Reedemed Hour"] = total_elapsed_sum["Elapsed Time"].apply(convert_to_decimal_hours)
+    
+            # Merge all data
+            mta_merged_data = pd.merge(mta_zone_data, affected_site_count, on=["Cluster", "Zone"], how="left")
+            mta_merged_data = pd.merge(mta_merged_data, elapsed_time_sum[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
+            mta_merged_data = pd.merge(mta_merged_data, avg_grid_availability, on=["Cluster", "Zone"], how="left")
+            mta_merged_data = pd.merge(mta_merged_data, total_elapsed_sum[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
+    
+            # Fill missing values and calculate remaining columns
+            mta_merged_data["Total Affected Site"] = mta_merged_data["Total Affected Site"].fillna(0).astype(int)
+            mta_merged_data["Elapsed Time (Decimal)"] = mta_merged_data["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
+            mta_merged_data["Grid Availability"] = mta_merged_data["AC Availability (%)"].fillna(0.0)
+            mta_merged_data["Total Reedemed Hour"] = mta_merged_data["Total Reedemed Hour"].fillna(Decimal(0.0))
+    
+            mta_merged_data["Total Allowable Limit (Hr)"] = mta_merged_data["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+            mta_merged_data["Remaining Hour"] = mta_merged_data["Total Allowable Limit (Hr)"] - mta_merged_data["Total Reedemed Hour"]
+    
+            # Display the MTA table
+            st.subheader("MTA Sites Table")
+            st.dataframe(
+                mta_merged_data[
+                    [
+                        "Cluster",
+                        "Zone",
+                        "Total Site Count",
+                        "Total Affected Site",
+                        "Elapsed Time (Decimal)",
+                        "Grid Availability",
+                        "Total Reedemed Hour",
+                        "Total Allowable Limit (Hr)",
+                        "Remaining Hour"
+                    ]
                 ]
-            ]
-        )
-    except Exception as e:
-        st.error(f"Error processing MTA Site List: {e}")
-else:
-    st.error("Failed to fetch MTA Site List from Git repository.")
-
+            )
+        except Exception as e:
+            st.error(f"Error processing MTA Site List: {e}")
+    else:
+        st.error("Failed to fetch MTA Site List from Git repository.")
 
     except Exception as e:
         st.error(f"Error merging data: {e}")
