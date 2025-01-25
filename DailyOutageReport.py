@@ -37,18 +37,16 @@ def convert_to_decimal_hours(elapsed_time):
         return Decimal(decimal_hours).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
     return Decimal(0.0)
 
-# Option to display MTA Site List
-show_mta_list = st.sidebar.checkbox("Show MTA Site List")
-
-if show_mta_list:
+# Checkbox for showing MTA Site List
+show_mta_checkbox = st.sidebar.checkbox("Show MTA Site List")
+if show_mta_checkbox:
     try:
-        mta_site_file = "MTA Site List.xlsx"  # Path to the MTA Site List file
-        df_mta_site = pd.read_excel(mta_site_file)
-
+        mta_site_list_file = "MTA Site List.xlsx"  # Path to the file
+        df_mta_site_list = pd.read_excel(mta_site_list_file)
         st.subheader("MTA Site List")
-        st.dataframe(df_mta_site)
+        st.dataframe(df_mta_site_list)
     except Exception as e:
-        st.error(f"Error reading MTA Site List: {e}")
+        st.error(f"Error loading MTA Site List: {e}")
 
 # Step 1: Upload RMS Site List
 rms_site_file = st.sidebar.file_uploader("1. RMS Site List", type=["xlsx", "xls"])
