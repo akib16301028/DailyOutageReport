@@ -253,7 +253,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             ]
         )
 
-    # Step 5: Process MTA Site List Data
+# Step 5: Process MTA Site List Data
 if mta_site_list is not None:
     try:
         # Group Cluster and Zone
@@ -324,6 +324,7 @@ if mta_site_list is not None:
 
     except Exception as e:
         st.error(f"Error processing MTA Site data: {e}")
+
 
 
     except Exception as e:
