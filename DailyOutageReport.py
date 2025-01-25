@@ -324,6 +324,9 @@ try:
 except Exception as e:
     st.error(f"Error processing MTA Site data: {e}")
 
+except Exception as e:
+    st.error(f"Error processing MTA Site data: {e}")
+
 
 
 
