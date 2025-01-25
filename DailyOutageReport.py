@@ -273,7 +273,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                 mta_final[["Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]] = mta_final[["Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]].fillna(0)
 
                 st.subheader("MTA Site List - Final Merged Table")
-                                st.dataframe(
+                st.dataframe(
                     mta_final[
                         [
                             "Cluster",
@@ -288,9 +288,9 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
                         ]
                     ]
                 )
-                
+
                 st.success("MTA Site List - Final Merged Table displayed successfully!")
-            
+
             except Exception as e:
                 st.error(f"Error processing MTA Site List: {e}")
 
