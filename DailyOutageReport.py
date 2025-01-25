@@ -240,5 +240,59 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             ]
         )
 
-    except Exception as e:
-        st.error(f"Error merging data: {e}")
+        # Process MTA Site List
+        show_mta = st.sidebar.checkbox("Show MTA Site List")
+        if show_mta:
+            try:
+                df_mta_site = pd.read_excel("MTA Site List.xlsx", skiprows=2)
+
+                df_mta_grouped = df_mta_site.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
+
+                affected_mta = df_alarm_history[df_alarm_history["Site Alias"].isin(df_mta_site["Site Alias"])]
+                affected_grouped = affected_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
+
+                elapsed_time_mta = affected_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
+                elapsed_time_mta["Elapsed Time (Decimal)"] = elapsed_time_mta["Elapsed Time"].apply(convert_to_decimal_hours)
+
+                grid_mta = df_grid_data[df_grid_data["Site"].isin(df_mta_site["Site Alias"])]
+                grid_grouped = grid_mta.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
+
+                redeemed_mta = df_total_elapse[df_total_elapse["Site"].isin(df_mta_site["Site Alias"])]
+                redeemed_grouped = redeemed_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
+                redeemed_grouped["Total Reedemed Hour"] = redeemed_grouped["Elapsed Time"].apply(convert_to_decimal_hours)
+
+                mta_final = pd.merge(df_mta_grouped, affected_grouped, on=["Cluster", "Zone"], how="left")
+                mta_final = pd.merge(mta_final, elapsed_time_mta[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
+                mta_final = pd.merge(mta_final, grid_grouped, on=["Cluster", "Zone"], how="left")
+                mta_final["Grid Availability"] = mta_final["AC Availability (%)"]
+                mta_final = pd.merge(mta_final, redeemed_grouped[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
+
+                mta_final["Total Allowable Limit (Hr)"] = mta_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+                mta_final["Remaining Hour"] = mta_final["Total Allowable Limit (Hr)"] - mta_final["Total Reedemed Hour"].astype(float)
+
+                mta_final[["Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]] = mta_final[["Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]].fillna(0)
+
+                st.subheader("MTA Site List - Final Merged Table")
+                                st.dataframe(
+                    mta_final[
+                        [
+                            "Cluster",
+                            "Zone",
+                            "Total Site Count",
+                            "Total Affected Site",
+                            "Elapsed Time (Decimal)",
+                            "Grid Availability",
+                            "Total Reedemed Hour",
+                            "Total Allowable Limit (Hr)",
+                            "Remaining Hour"
+                        ]
+                    ]
+                )
+                
+                st.success("MTA Site List - Final Merged Table displayed successfully!")
+            
+            except Exception as e:
+                st.error(f"Error processing MTA Site List: {e}")
+
+# End of application
+st.sidebar.success("All files processed successfully!")
