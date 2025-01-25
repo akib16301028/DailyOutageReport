@@ -38,8 +38,8 @@ def convert_to_decimal_hours(elapsed_time):
         return Decimal(decimal_hours).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
     return Decimal(0.0)
 
-# Path to the MTA Site List in the deployed directory
-MTA_SITE_LIST_PATH = "./MTA_Site_List.xlsx"
+# Path to the MTA Site List in the deployed directory (using __file__ to get the current script's directory)
+MTA_SITE_LIST_PATH = os.path.join(os.path.dirname(__file__), "MTA_Site_List.xlsx")
 
 # Function to load MTA Site List from the local repository
 def load_mta_site_list():
