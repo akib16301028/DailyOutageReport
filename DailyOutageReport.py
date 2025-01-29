@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 from decimal import Decimal, ROUND_HALF_UP
-import os
 
 # Set the title of the application
-st.title("MTA Site List Processing")
+st.title("Tenant-Wise Data Processing Application")
+
+# Sidebar for uploading files
+st.sidebar.header("Upload Required Excel Files")
 
 # Function to standardize tenant names
 def standardize_tenant(tenant_name):
@@ -16,6 +18,17 @@ def standardize_tenant(tenant_name):
     }
     return tenant_mapping.get(tenant_name, tenant_name)
 
+# Function to extract tenant from Site Alias
+def extract_tenant(site_alias):
+    if isinstance(site_alias, str):
+        brackets = site_alias.split("(")
+        tenants = [part.split(")")[0].strip() for part in brackets if ")" in part]
+        for tenant in tenants:
+            if "BANJO" in tenant:
+                return "Banjo"
+        return tenants[0] if tenants else "Unknown"
+    return "Unknown"
+
 # Function to convert elapsed time to decimal hours
 def convert_to_decimal_hours(elapsed_time):
     if pd.notnull(elapsed_time):
@@ -24,114 +37,195 @@ def convert_to_decimal_hours(elapsed_time):
         return Decimal(decimal_hours).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
     return Decimal(0.0)
 
-# Function to trim spaces at the end of column header names
-def trim_column_names(df):
-    df.columns = df.columns.str.rstrip()  # Remove trailing spaces
-    return df
-
-# Step 1: Load MTA Site List from the repository
-mta_site_list_path = os.path.join(os.path.dirname(__file__), "MTA Site List.xlsx")
-if os.path.exists(mta_site_list_path):
-    st.success("MTA Site List loaded successfully!")
+# Step 1: Upload RMS Site List
+rms_site_file = st.sidebar.file_uploader("1. RMS Site List", type=["xlsx", "xls"])
+if rms_site_file:
+    st.success("RMS Site List uploaded successfully!")
 
     try:
-        # Read MTA Site List
-        df_mta_site_list = pd.read_excel(mta_site_list_path)
-        df_mta_site_list = trim_column_names(df_mta_site_list)
+        # Read RMS Site List starting from row 3
+        df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
 
         # Filter out sites starting with 'L'
-        df_mta_site_list = df_mta_site_list[~df_mta_site_list["Site"].str.startswith("L", na=False)].copy()
+        df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
 
-        # Group by Cluster and Zone
-        mta_grouped = df_mta_site_list.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
+        # Add Tenant column
+        df_rms_filtered["Tenant"] = df_rms_filtered["Site Alias"].apply(extract_tenant)
 
-        # Step 2: Load Yesterday Alarm History
-        alarm_history_path = os.path.join(os.path.dirname(__file__), "Yesterday Alarm History.xlsx")
-        if os.path.exists(alarm_history_path):
-            df_alarm_history = pd.read_excel(alarm_history_path, skiprows=2)
-            df_alarm_history = trim_column_names(df_alarm_history)
+        # Standardize tenant names
+        df_rms_filtered["Tenant"] = df_rms_filtered["Tenant"].apply(standardize_tenant)
 
-            # Filter out sites starting with 'L'
-            df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)].copy()
+        # Group tenant data by Cluster and Zone
+        tenant_zone_rms = {}
+        for tenant in df_rms_filtered["Tenant"].unique():
+            tenant_df = df_rms_filtered[df_rms_filtered["Tenant"] == tenant]
+            grouped_df = tenant_df.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
+            grouped_df = grouped_df.sort_values(by=["Cluster", "Zone"])
+            tenant_zone_rms[tenant] = grouped_df
 
-            # Standardize tenant names
-            df_alarm_history.loc[:, "Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
+    except Exception as e:
+        st.error(f"Error processing RMS Site List: {e}")
 
-            # Filter alarm history for sites present in MTA Site List
-            df_alarm_history_mta = df_alarm_history[df_alarm_history["Site"].isin(df_mta_site_list["Site"])].copy()
+# Step 2: Upload Yesterday Alarm History
+alarm_history_file = st.sidebar.file_uploader("2. Yesterday Alarm History", type=["xlsx", "xls"])
+if alarm_history_file:
+    st.success("Yesterday Alarm History uploaded successfully!")
 
-            # Group alarm data by Cluster and Zone
-            grouped_alarm_data_mta = df_alarm_history_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
+    try:
+        df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
+        df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
+        df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
 
-            # Convert Elapsed Time to decimal hours
-            df_alarm_history_mta.loc[:, "Elapsed Time"] = pd.to_timedelta(df_alarm_history_mta["Elapsed Time"], errors="coerce")
-            elapsed_time_sum_mta = df_alarm_history_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-            elapsed_time_sum_mta.loc[:, "Elapsed Time (Decimal)"] = elapsed_time_sum_mta["Elapsed Time"].apply(convert_to_decimal_hours)
+        tenant_merged_data = {}
+        merged_all_tenants = pd.DataFrame()
 
-            # Merge MTA grouped data with alarm data
-            merged_data_mta = pd.merge(mta_grouped, grouped_alarm_data_mta, on=["Cluster", "Zone"], how="left")
-            merged_data_mta = pd.merge(merged_data_mta, elapsed_time_sum_mta[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
+        for tenant in df_alarm_history["Tenant"].unique():
+            rms_data = tenant_zone_rms.get(tenant, pd.DataFrame())
+            alarm_data = df_alarm_history[df_alarm_history["Tenant"] == tenant]
 
-            # Fill NaN values
-            merged_data_mta.loc[:, "Total Affected Site"] = merged_data_mta["Total Affected Site"].fillna(0)
-            merged_data_mta.loc[:, "Elapsed Time (Decimal)"] = merged_data_mta["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
+            grouped_alarm_data = alarm_data.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
+            alarm_data["Elapsed Time"] = pd.to_timedelta(alarm_data["Elapsed Time"], errors="coerce")
+            elapsed_time_sum = alarm_data.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
+            elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
 
-        # Step 3: Load Grid Data
-        grid_data_path = os.path.join(os.path.dirname(__file__), "Grid Data.xlsx")
-        if os.path.exists(grid_data_path):
-            df_grid_data = pd.read_excel(grid_data_path, sheet_name="Site Wise Summary", skiprows=2)
-            df_grid_data = trim_column_names(df_grid_data)
+            merged_data = pd.merge(rms_data, grouped_alarm_data, on=["Cluster", "Zone"], how="left")
+            merged_data = pd.merge(merged_data, elapsed_time_sum[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
 
-            # Filter out sites starting with 'L'
-            df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)].copy()
+            merged_data["Total Affected Site"] = merged_data["Total Affected Site"].fillna(0)
+            merged_data["Elapsed Time (Decimal)"] = merged_data["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
 
-            # Select relevant columns
-            df_grid_data = df_grid_data[["Cluster", "Zone", "Tenant Name", "AC Availability (%)"]]
-            df_grid_data.loc[:, "Tenant Name"] = df_grid_data["Tenant Name"].apply(standardize_tenant)
+            tenant_merged_data[tenant] = merged_data
+            merged_all_tenants = pd.concat([merged_all_tenants, merged_data])
 
-            # Filter grid data for sites present in MTA Site List
-            df_grid_data_mta = df_grid_data[df_grid_data["Site"].isin(df_mta_site_list["Site"])].copy()
+    except Exception as e:
+        st.error(f"Error processing Yesterday Alarm History: {e}")
 
-            # Group grid data by Cluster and Zone
-            grouped_grid_mta = df_grid_data_mta.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
+# Step 3: Upload Grid Data
+grid_data_file = st.sidebar.file_uploader("3. Grid Data", type=["xlsx", "xls"])
+if grid_data_file:
+    st.success("Grid Data uploaded successfully!")
 
-            # Merge with existing data
-            merged_data_mta = pd.merge(merged_data_mta, grouped_grid_mta, on=["Cluster", "Zone"], how="left")
-            merged_data_mta.loc[:, "Grid Availability"] = merged_data_mta["AC Availability (%)"]
+    try:
+        df_grid_data = pd.read_excel(grid_data_file, sheet_name="Site Wise Summary", skiprows=2)
+        df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
 
-        # Step 4: Load Total Elapse Till Date
-        total_elapse_path = os.path.join(os.path.dirname(__file__), "Total Elapse Till Date.xlsx")
-        if os.path.exists(total_elapse_path):
-            df_total_elapse = pd.read_excel(total_elapse_path, skiprows=0)
-            df_total_elapse = trim_column_names(df_total_elapse)
+        df_grid_data = df_grid_data[["Cluster", "Zone", "Tenant Name", "AC Availability (%)"]]
+        df_grid_data["Tenant Name"] = df_grid_data["Tenant Name"].apply(standardize_tenant)
 
-            # Filter out sites starting with 'L'
-            df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)].copy()
+        tenant_zone_grid = {}
+        for tenant in df_grid_data["Tenant Name"].unique():
+            tenant_df = df_grid_data[df_grid_data["Tenant Name"] == tenant]
+            grouped_grid = tenant_df.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
+            tenant_zone_grid[tenant] = grouped_grid
 
-            # Standardize tenant names
-            df_total_elapse.loc[:, "Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
+    except Exception as e:
+        st.error(f"Error processing Grid Data: {e}")
 
-            # Convert Elapsed Time to timedelta
-            df_total_elapse.loc[:, "Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
+# Step 4: Upload Total Elapse Till Date
+total_elapse_file = st.sidebar.file_uploader("4. Total Elapse Till Date", type=["xlsx", "xls", "csv"])
+if total_elapse_file:
+    st.success("Total Elapse Till Date uploaded successfully!")
 
-            # Filter total elapse for sites present in MTA Site List
-            df_total_elapse_mta = df_total_elapse[df_total_elapse["Site"].isin(df_mta_site_list["Site"])].copy()
+    try:
+        if total_elapse_file.name.endswith(".csv"):
+            df_total_elapse = pd.read_csv(total_elapse_file)
+        else:
+            df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)
 
-            # Group total elapse by Cluster and Zone
-            grouped_elapsed_mta = df_total_elapse_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-            grouped_elapsed_mta.loc[:, "Total Reedemed Hour"] = grouped_elapsed_mta["Elapsed Time"].apply(convert_to_decimal_hours)
+        df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
+        df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
+        df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
 
-            # Merge with existing data
-            merged_data_mta = pd.merge(merged_data_mta, grouped_elapsed_mta[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
+        tenant_total_elapsed = {}
+        for tenant in df_total_elapse["Tenant"].unique():
+            tenant_df = df_total_elapse[df_total_elapse["Tenant"] == tenant]
+            grouped_elapsed = tenant_df.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
+            grouped_elapsed["Total Reedemed Hour"] = grouped_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
 
-            # Calculate Total Allowable Limit (Hr) and Remaining Hour
-            merged_data_mta.loc[:, "Total Allowable Limit (Hr)"] = merged_data_mta["Total Site Count"] * 24 * 30 * (1 - 0.9985)
-            merged_data_mta.loc[:, "Remaining Hour"] = merged_data_mta["Total Allowable Limit (Hr)"] - merged_data_mta["Total Reedemed Hour"].astype(float)
+            tenant_total_elapsed[tenant] = grouped_elapsed
 
-        # Display Final Merged Table
-        st.subheader("MTA Sites - Final Merged Table")
+    except Exception as e:
+        st.error(f"Error processing Total Elapse Till Date: {e}")
+
+# Merge Overall and Tenant-Specific Data
+if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file:
+    try:
+        for tenant, tenant_merged in tenant_merged_data.items():
+            grid_data = tenant_zone_grid.get(tenant, pd.DataFrame())
+
+            merged_tenant_final = pd.merge(
+                tenant_merged,
+                grid_data[["Cluster", "Zone", "AC Availability (%)"]],
+                on=["Cluster", "Zone"],
+                how="left"
+            )
+
+            merged_tenant_final["Grid Availability"] = merged_tenant_final["AC Availability (%)"]
+
+            total_elapsed_data = tenant_total_elapsed.get(tenant, pd.DataFrame())
+            merged_tenant_final = pd.merge(
+                merged_tenant_final,
+                total_elapsed_data[["Cluster", "Zone", "Total Reedemed Hour"]],
+                on=["Cluster", "Zone"],
+                how="left"
+            )
+
+            numeric_columns = ["Total Site Count", "Total Affected Site", "Elapsed Time (Decimal)", "Total Reedemed Hour"]
+            merged_tenant_final[numeric_columns] = merged_tenant_final[numeric_columns].fillna(0).astype(float)
+
+            merged_tenant_final["Total Allowable Limit (Hr)"] = merged_tenant_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+            merged_tenant_final["Remaining Hour"] = merged_tenant_final["Total Allowable Limit (Hr)"] - merged_tenant_final["Total Reedemed Hour"]
+
+            st.subheader(f"Tenant: {tenant} - Final Merged Table")
+            st.dataframe(
+                merged_tenant_final[
+                    [
+                        "Cluster",
+                        "Zone",
+                        "Total Site Count",
+                        "Total Affected Site",
+                        "Elapsed Time (Decimal)",
+                        "Grid Availability",
+                        "Total Reedemed Hour",
+                        "Total Allowable Limit (Hr)",
+                        "Remaining Hour"
+                    ]
+                ]
+            )
+
+        combined_grid_data = df_grid_data.groupby(["Cluster", "Zone"]).agg({
+            "AC Availability (%)": "mean",
+        }).reset_index()
+
+        overall_final_merged = pd.merge(
+            merged_all_tenants.groupby(["Cluster", "Zone"]).sum().reset_index(),
+            combined_grid_data,
+            on=["Cluster", "Zone"],
+            how="left"
+        )
+
+        overall_final_merged["Grid Availability"] = overall_final_merged["AC Availability (%)"]
+
+        overall_elapsed = (
+            df_total_elapse.groupby(["Cluster", "Zone"])["Elapsed Time"]
+            .sum()
+            .reset_index()
+        )
+        overall_elapsed["Total Reedemed Hour"] = overall_elapsed["Elapsed Time"].apply(convert_to_decimal_hours)
+
+        overall_final_merged = pd.merge(
+            overall_final_merged,
+            overall_elapsed[["Cluster", "Zone", "Total Reedemed Hour"]],
+            on=["Cluster", "Zone"],
+            how="left"
+        )
+
+        overall_final_merged["Total Allowable Limit (Hr)"] = overall_final_merged["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+        overall_final_merged["Remaining Hour"] = overall_final_merged["Total Allowable Limit (Hr)"] - overall_final_merged["Total Reedemed Hour"].astype(float)
+
+        st.subheader("Overall Final Merged Table")
         st.dataframe(
-            merged_data_mta[
+            overall_final_merged[
                 [
                     "Cluster",
                     "Zone",
@@ -147,6 +241,4 @@ if os.path.exists(mta_site_list_path):
         )
 
     except Exception as e:
-        st.error(f"Error processing MTA Site List: {e}")
-else:
-    st.error("MTA Site List file not found in the repository.")
+        st.error(f"Error merging data: {e}")
