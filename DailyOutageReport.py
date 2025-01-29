@@ -193,13 +193,13 @@ if os.path.exists(mta_site_list_path):
         st.write("Unique values in 'Site' column:", df_mta_site_list["Site"].unique())
 
         # Convert 'Site' column to string (if not already)
-        df_mta_site_list["Site"] = df_mta_site_list["Site"].astype(str)
+        df_mta_site_list.loc[:, "Site"] = df_mta_site_list["Site"].astype(str)
 
         # Debug: Check for missing values in 'Site' column
         st.write("Missing values in 'Site' column:", df_mta_site_list["Site"].isna().sum())
 
         # Filter out sites starting with 'L'
-        df_mta_site_list = df_mta_site_list[~df_mta_site_list["Site"].str.startswith("L", na=False)]
+        df_mta_site_list = df_mta_site_list[~df_mta_site_list["Site"].str.startswith("L", na=False)].copy()
 
         # Group by Cluster and Zone
         mta_grouped = df_mta_site_list.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Site Count")
@@ -211,29 +211,29 @@ if os.path.exists(mta_site_list_path):
             df_alarm_history = trim_column_names(df_alarm_history)
 
             # Filter out sites starting with 'L'
-            df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
+            df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)].copy()
 
             # Standardize tenant names
-            df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
+            df_alarm_history.loc[:, "Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
 
             # Filter alarm history for sites present in MTA Site List
-            df_alarm_history_mta = df_alarm_history[df_alarm_history["Site"].isin(df_mta_site_list["Site"])]
+            df_alarm_history_mta = df_alarm_history[df_alarm_history["Site"].isin(df_mta_site_list["Site"])].copy()
 
             # Group alarm data by Cluster and Zone
             grouped_alarm_data_mta = df_alarm_history_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
 
             # Convert Elapsed Time to decimal hours
-            df_alarm_history_mta["Elapsed Time"] = pd.to_timedelta(df_alarm_history_mta["Elapsed Time"], errors="coerce")
+            df_alarm_history_mta.loc[:, "Elapsed Time"] = pd.to_timedelta(df_alarm_history_mta["Elapsed Time"], errors="coerce")
             elapsed_time_sum_mta = df_alarm_history_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-            elapsed_time_sum_mta["Elapsed Time (Decimal)"] = elapsed_time_sum_mta["Elapsed Time"].apply(convert_to_decimal_hours)
+            elapsed_time_sum_mta.loc[:, "Elapsed Time (Decimal)"] = elapsed_time_sum_mta["Elapsed Time"].apply(convert_to_decimal_hours)
 
             # Merge MTA grouped data with alarm data
             merged_data_mta = pd.merge(mta_grouped, grouped_alarm_data_mta, on=["Cluster", "Zone"], how="left")
             merged_data_mta = pd.merge(merged_data_mta, elapsed_time_sum_mta[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
 
             # Fill NaN values
-            merged_data_mta["Total Affected Site"] = merged_data_mta["Total Affected Site"].fillna(0)
-            merged_data_mta["Elapsed Time (Decimal)"] = merged_data_mta["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
+            merged_data_mta.loc[:, "Total Affected Site"] = merged_data_mta["Total Affected Site"].fillna(0)
+            merged_data_mta.loc[:, "Elapsed Time (Decimal)"] = merged_data_mta["Elapsed Time (Decimal)"].fillna(Decimal(0.0))
 
         # Merge with Grid Data (if available)
         if grid_data_file:
@@ -242,21 +242,21 @@ if os.path.exists(mta_site_list_path):
             df_grid_data = trim_column_names(df_grid_data)
 
             # Filter out sites starting with 'L'
-            df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
+            df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)].copy()
 
             # Select relevant columns
             df_grid_data = df_grid_data[["Cluster", "Zone", "Tenant Name", "AC Availability (%)"]]
-            df_grid_data["Tenant Name"] = df_grid_data["Tenant Name"].apply(standardize_tenant)
+            df_grid_data.loc[:, "Tenant Name"] = df_grid_data["Tenant Name"].apply(standardize_tenant)
 
             # Filter grid data for sites present in MTA Site List
-            df_grid_data_mta = df_grid_data[df_grid_data["Site"].isin(df_mta_site_list["Site"])]
+            df_grid_data_mta = df_grid_data[df_grid_data["Site"].isin(df_mta_site_list["Site"])].copy()
 
             # Group grid data by Cluster and Zone
             grouped_grid_mta = df_grid_data_mta.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
 
             # Merge with existing data
             merged_data_mta = pd.merge(merged_data_mta, grouped_grid_mta, on=["Cluster", "Zone"], how="left")
-            merged_data_mta["Grid Availability"] = merged_data_mta["AC Availability (%)"]
+            merged_data_mta.loc[:, "Grid Availability"] = merged_data_mta["AC Availability (%)"]
 
         # Merge with Total Elapse Till Date (if available)
         if total_elapse_file:
@@ -269,30 +269,30 @@ if os.path.exists(mta_site_list_path):
             df_total_elapse = trim_column_names(df_total_elapse)
 
             # Filter out sites starting with 'L'
-            df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
+            df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)].copy()
 
             # Standardize tenant names
-            df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
+            df_total_elapse.loc[:, "Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
 
             # Convert Elapsed Time to timedelta
-            df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
+            df_total_elapse.loc[:, "Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
 
             # Filter total elapse for sites present in MTA Site List
-            df_total_elapse_mta = df_total_elapse[df_total_elapse["Site"].isin(df_mta_site_list["Site"])]
+            df_total_elapse_mta = df_total_elapse[df_total_elapse["Site"].isin(df_mta_site_list["Site"])].copy()
 
             # Group total elapse by Cluster and Zone
             grouped_elapsed_mta = df_total_elapse_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-            grouped_elapsed_mta["Total Reedemed Hour"] = grouped_elapsed_mta["Elapsed Time"].apply(convert_to_decimal_hours)
+            grouped_elapsed_mta.loc[:, "Total Reedemed Hour"] = grouped_elapsed_mta["Elapsed Time"].apply(convert_to_decimal_hours)
 
             # Merge with existing data
             merged_data_mta = pd.merge(merged_data_mta, grouped_elapsed_mta[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
 
             # Calculate Total Allowable Limit (Hr) and Remaining Hour
-            merged_data_mta["Total Allowable Limit (Hr)"] = merged_data_mta["Total Site Count"] * 24 * 30 * (1 - 0.9985)
-            merged_data_mta["Remaining Hour"] = merged_data_mta["Total Allowable Limit (Hr)"] - merged_data_mta["Total Reedemed Hour"].astype(float)
+            merged_data_mta.loc[:, "Total Allowable Limit (Hr)"] = merged_data_mta["Total Site Count"] * 24 * 30 * (1 - 0.9985)
+            merged_data_mta.loc[:, "Remaining Hour"] = merged_data_mta["Total Allowable Limit (Hr)"] - merged_data_mta["Total Reedemed Hour"].astype(float)
 
         # Display Final Merged Table
-        st.subheader("MTA Sites - Final Merged Table")
+        st.subheader("Overall Final Merged Table")
         st.dataframe(
             merged_data_mta[
                 [
