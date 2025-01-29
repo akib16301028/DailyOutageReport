@@ -1,6 +1,12 @@
 import streamlit as st
 import pandas as pd
 from decimal import Decimal, ROUND_HALF_UP
+import os  # Moved to the top with other imports
+
+# Function to trim spaces from column headers
+def trim_column_headers(df):
+    df.columns = df.columns.str.strip()
+    return df
 
 # Set the title of the application
 st.title("Tenant-Wise Data Processing Application")
@@ -45,6 +51,7 @@ if rms_site_file:
     try:
         # Read RMS Site List starting from row 3
         df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
+        df_rms_site = trim_column_headers(df_rms_site)  # Trim column headers
 
         # Filter out sites starting with 'L'
         df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
@@ -73,6 +80,7 @@ if alarm_history_file:
 
     try:
         df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
+        df_alarm_history = trim_column_headers(df_alarm_history)  # Trim column headers
         df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
         df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
 
@@ -107,6 +115,7 @@ if grid_data_file:
 
     try:
         df_grid_data = pd.read_excel(grid_data_file, sheet_name="Site Wise Summary", skiprows=2)
+        df_grid_data = trim_column_headers(df_grid_data)  # Trim column headers
         df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
 
         df_grid_data = df_grid_data[["Cluster", "Zone", "Tenant Name", "AC Availability (%)"]]
@@ -132,6 +141,7 @@ if total_elapse_file:
         else:
             df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)
 
+        df_total_elapse = trim_column_headers(df_total_elapse)  # Trim column headers
         df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
         df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
         df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
@@ -240,8 +250,6 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             ]
         )
 
-    import os
-
         # Load MTA Site List.xlsx from repository
         user_file_path = os.path.join(os.path.dirname(__file__), "MTA Site List.xlsx")
         df_mta_sites = trim_column_headers(pd.read_excel(user_file_path, skiprows=2))
@@ -299,6 +307,5 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             ]
         )
         
-
     except Exception as e:
         st.error(f"Error merging data: {e}")
