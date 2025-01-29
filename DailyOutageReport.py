@@ -40,7 +40,11 @@ def convert_to_decimal_hours(elapsed_time):
 
 # Function to trim spaces at the end of column header names
 def trim_column_names(df):
-    df.columns = df.columns.str.strip()
+    """
+    Trims trailing spaces from column header names in a DataFrame.
+    Example: "Site Alias " -> "Site Alias"
+    """
+    df.columns = df.columns.str.rstrip()  # Remove trailing spaces
     return df
 
 # Step 1: Upload RMS Site List
@@ -51,6 +55,9 @@ if rms_site_file:
     try:
         # Read RMS Site List starting from row 3
         df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
+
+        # Trim column names
+        df_rms_site = trim_column_names(df_rms_site)
 
         # Filter out sites starting with 'L'
         df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
@@ -79,6 +86,10 @@ if alarm_history_file:
 
     try:
         df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
+
+        # Trim column names
+        df_alarm_history = trim_column_names(df_alarm_history)
+
         df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
         df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
 
@@ -113,6 +124,10 @@ if grid_data_file:
 
     try:
         df_grid_data = pd.read_excel(grid_data_file, sheet_name="Site Wise Summary", skiprows=2)
+
+        # Trim column names
+        df_grid_data = trim_column_names(df_grid_data)
+
         df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
 
         df_grid_data = df_grid_data[["Cluster", "Zone", "Tenant Name", "AC Availability (%)"]]
@@ -137,6 +152,9 @@ if total_elapse_file:
             df_total_elapse = pd.read_csv(total_elapse_file)
         else:
             df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)
+
+        # Trim column names
+        df_total_elapse = trim_column_names(df_total_elapse)
 
         df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
         df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
