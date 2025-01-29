@@ -252,7 +252,7 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
 
         # Load MTA Site List.xlsx from repository
         user_file_path = os.path.join(os.path.dirname(__file__), "MTA Site List.xlsx")
-        df_mta_sites = trim_column_headers(pd.read_excel(user_file_path, skiprows=2))
+        df_mta_sites = trim_column_headers(pd.read_excel(user_file_path, skiprows=0))
         
         # Group by Cluster & Zone
         df_mta_grouped = df_mta_sites.groupby(["Cluster", "Zone"])["Site Alias"].count().reset_index()
