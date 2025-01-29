@@ -1,12 +1,6 @@
 import streamlit as st
 import pandas as pd
 from decimal import Decimal, ROUND_HALF_UP
-import os  # Moved to the top with other imports
-
-# Function to trim spaces from column headers
-def trim_column_headers(df):
-    df.columns = df.columns.str.strip()
-    return df
 
 # Set the title of the application
 st.title("Tenant-Wise Data Processing Application")
@@ -51,7 +45,6 @@ if rms_site_file:
     try:
         # Read RMS Site List starting from row 3
         df_rms_site = pd.read_excel(rms_site_file, skiprows=2)
-        df_rms_site = trim_column_headers(df_rms_site)  # Trim column headers
 
         # Filter out sites starting with 'L'
         df_rms_filtered = df_rms_site[~df_rms_site["Site"].str.startswith("L", na=False)]
@@ -80,7 +73,6 @@ if alarm_history_file:
 
     try:
         df_alarm_history = pd.read_excel(alarm_history_file, skiprows=2)
-        df_alarm_history = trim_column_headers(df_alarm_history)  # Trim column headers
         df_alarm_history = df_alarm_history[~df_alarm_history["Site"].str.startswith("L", na=False)]
         df_alarm_history["Tenant"] = df_alarm_history["Tenant"].apply(standardize_tenant)
 
@@ -115,7 +107,6 @@ if grid_data_file:
 
     try:
         df_grid_data = pd.read_excel(grid_data_file, sheet_name="Site Wise Summary", skiprows=2)
-        df_grid_data = trim_column_headers(df_grid_data)  # Trim column headers
         df_grid_data = df_grid_data[~df_grid_data["Site"].str.startswith("L", na=False)]
 
         df_grid_data = df_grid_data[["Cluster", "Zone", "Tenant Name", "AC Availability (%)"]]
@@ -141,7 +132,6 @@ if total_elapse_file:
         else:
             df_total_elapse = pd.read_excel(total_elapse_file, skiprows=0)
 
-        df_total_elapse = trim_column_headers(df_total_elapse)  # Trim column headers
         df_total_elapse = df_total_elapse[~df_total_elapse["Site"].str.startswith("L", na=False)]
         df_total_elapse["Tenant"] = df_total_elapse["Tenant"].apply(standardize_tenant)
         df_total_elapse["Elapsed Time"] = pd.to_timedelta(df_total_elapse["Elapsed Time"], errors="coerce")
@@ -250,62 +240,5 @@ if rms_site_file and alarm_history_file and grid_data_file and total_elapse_file
             ]
         )
 
-        # Load MTA Site List.xlsx from repository
-        user_file_path = os.path.join(os.path.dirname(__file__), "MTA Site List.xlsx")
-        df_mta_sites = trim_column_headers(pd.read_excel(user_file_path, skiprows=0))
-        
-        # Group by Cluster & Zone
-        df_mta_grouped = df_mta_sites.groupby(["Cluster", "Zone"])["Site Alias"].count().reset_index()
-        df_mta_grouped.rename(columns={"Site Alias": "Total Site Count"}, inplace=True)
-        
-        # Filter Yesterday Alarm History for matching Site Alias
-        df_alarm_mta = df_alarm_history[df_alarm_history["Site Alias"].isin(df_mta_sites["Site Alias"])]
-        df_alarm_grouped = df_alarm_mta.groupby(["Cluster", "Zone"]).size().reset_index(name="Total Affected Site")
-        
-        # Sum Elapsed Time for matched Site Alias
-        df_alarm_mta["Elapsed Time"] = pd.to_timedelta(df_alarm_mta["Elapsed Time"], errors="coerce")
-        elapsed_time_sum = df_alarm_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-        elapsed_time_sum["Elapsed Time (Decimal)"] = elapsed_time_sum["Elapsed Time"].apply(convert_to_decimal_hours)
-        
-        # Calculate Grid Availability for matched Site Alias
-        df_grid_mta = df_grid_data[df_grid_data["Site Alias"].isin(df_mta_sites["Site Alias"])]
-        grid_availability = df_grid_mta.groupby(["Cluster", "Zone"])["AC Availability (%)"].mean().reset_index()
-        
-        # Sum Total Reedemed Hour for matched Site Alias
-        df_elapse_mta = df_total_elapse[df_total_elapse["Site Alias"].isin(df_mta_sites["Site Alias"])]
-        elapsed_redeemed = df_elapse_mta.groupby(["Cluster", "Zone"])["Elapsed Time"].sum().reset_index()
-        elapsed_redeemed["Total Reedemed Hour"] = elapsed_redeemed["Elapsed Time"].apply(convert_to_decimal_hours)
-        
-        # Merge Data
-        df_mta_final = df_mta_grouped.merge(df_alarm_grouped, on=["Cluster", "Zone"], how="left")
-        df_mta_final = df_mta_final.merge(elapsed_time_sum[["Cluster", "Zone", "Elapsed Time (Decimal)"]], on=["Cluster", "Zone"], how="left")
-        df_mta_final = df_mta_final.merge(grid_availability, on=["Cluster", "Zone"], how="left")
-        df_mta_final = df_mta_final.merge(elapsed_redeemed[["Cluster", "Zone", "Total Reedemed Hour"]], on=["Cluster", "Zone"], how="left")
-        
-        # Fill NaN values with 0
-        df_mta_final.fillna(0, inplace=True)
-        
-        # Calculate Total Allowable Limit & Remaining Hour
-        df_mta_final["Total Allowable Limit (Hr)"] = df_mta_final["Total Site Count"] * 24 * 30 * (1 - 0.9985)
-        df_mta_final["Remaining Hour"] = df_mta_final["Total Allowable Limit (Hr)"] - df_mta_final["Total Reedemed Hour"]
-        
-        # Display MTA Table
-        st.subheader("MTA Sites Table")
-        st.dataframe(
-            df_mta_final[
-                [
-                    "Cluster",
-                    "Zone",
-                    "Total Site Count",
-                    "Total Affected Site",
-                    "Elapsed Time (Decimal)",
-                    "AC Availability (%)",
-                    "Total Reedemed Hour",
-                    "Total Allowable Limit (Hr)",
-                    "Remaining Hour"
-                ]
-            ]
-        )
-        
     except Exception as e:
         st.error(f"Error merging data: {e}")
